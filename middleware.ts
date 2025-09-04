@@ -1,8 +1,15 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-export async function middleware(req: Request) {
-  const url = new URL(req.url);
-  const token = (req as any).cookies?.get?.("auth_token")?.value;
+export async function middleware(req: NextRequest) {
+  const url = req.nextUrl;
+  const path = url.pathname;
+  // Skip auth for API routes and public assets
+  if (path.startsWith("/api/")) return NextResponse.next();
+  if (path.startsWith("/_next") || path.startsWith("/public") || path === "/favicon.ico" || path === "/manifest.json" || path === "/sw.js") return NextResponse.next();
+  // Skip auth for auth pages
+  if (path.startsWith("/login") || path.startsWith("/register")) return NextResponse.next();
+
+  const token = req.cookies.get("auth_token")?.value;
   const isProtected = [
     "/",
     "/dashboard",
@@ -12,7 +19,7 @@ export async function middleware(req: Request) {
     "/shared",
     "/notifications",
     "/settings",
-  ].some((p) => url.pathname === p || url.pathname.startsWith(p + "/"));
+  ].some((p) => path === p || path.startsWith(p + "/"));
   if (isProtected && !token) {
     url.pathname = "/login";
     return NextResponse.redirect(url);
