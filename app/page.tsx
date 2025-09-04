@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { HeroBanner } from "@/components/ui/HeroBanner";
+import { DynamicHeroBanner } from "@/components/ui/DynamicHeroBanner";
 
 export default async function Home() {
   const session = await getServerSession(authOptions);
@@ -19,7 +19,7 @@ export default async function Home() {
   return (
     <div className="min-h-dvh flex flex-col bg-gradient-to-b from-[#0f172a] to-[#0b1023] text-white">
       <main className="flex-1 p-6 max-w-md mx-auto w-full space-y-4">
-        <HeroBanner title="Buni Money Tracker" subtitle="Smarter budgets. Clearer insights. Mobile-first." color="#6366f1" />
+        <DynamicHeroBanner />
         <div className="rounded-2xl border card p-5 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
