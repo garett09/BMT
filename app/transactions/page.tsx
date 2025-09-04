@@ -10,6 +10,9 @@ import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { incomeCategories, expenseCategories } from "@/components/constants";
 import { Modal } from "@/components/ui/Modal";
 import { Segmented } from "@/components/ui/Segmented";
+import { useToast } from "@/components/ui/Toast";
+import { PullToRefresh } from "@/components/ui/PullToRefresh";
+import { ListSkeleton } from "@/components/ui/ListSkeleton";
 
 type Tx = {
   id: string;
@@ -83,6 +86,7 @@ export default function TransactionsPage() {
   };
 
   return (
+    <PullToRefresh onRefresh={fetchTxs}>
     <div className="min-h-dvh flex flex-col">
       <main className="flex-1 p-4 space-y-4 max-w-md mx-auto w-full">
         <h1 className="text-xl font-semibold">Transactions</h1>
@@ -124,7 +128,7 @@ export default function TransactionsPage() {
 
         <div className="space-y-2">
         {loading ? (
-          <div className="text-sm text-[var(--muted)]">Loading…</div>
+          <ListSkeleton />
         ) : txs.length === 0 ? (
           <div className="rounded-md border card p-4 text-center text-sm text-[var(--muted)]">No transactions yet. Add your first one above.</div>
         ) : (
@@ -163,6 +167,7 @@ export default function TransactionsPage() {
         )}
       </Modal>
     </div>
+    </PullToRefresh>
   );
 }
 
