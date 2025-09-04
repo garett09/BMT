@@ -54,7 +54,7 @@ export default function AccountsPage() {
           )}
         </div>
       </main>
-      <BottomNav items={[{ href: "/dashboard", label: "Dashboard" }, { href: "/transactions", label: "Transactions" }, { href: "/accounts", label: "Accounts", active: true }]} />
+      <BottomNav items={[{ href: "/dashboard", label: "Dashboard" }, { href: "/transactions", label: "Transactions" }, { href: "/accounts", label: "Accounts", active: true }, { href: "/notifications", label: "Inbox" }]} />
 
       <Modal open={open} onClose={() => setOpen(false)} title="Add New Account">
         <form onSubmit={save} className="grid grid-cols-2 gap-2">

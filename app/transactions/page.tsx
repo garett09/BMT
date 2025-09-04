@@ -156,6 +156,7 @@ export default function TransactionsPage() {
       <BottomNav items={[
         { href: "/dashboard", label: "Dashboard" },
         { href: "/transactions", label: "Transactions", active: true },
+        { href: "/accounts", label: "Accounts" },
         { href: "/notifications", label: "Inbox" },
       ]} />
       <Modal open={editOpen} onClose={() => setEditOpen(false)} title="Edit Transaction">
