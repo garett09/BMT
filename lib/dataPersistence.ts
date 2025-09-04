@@ -28,7 +28,7 @@ export class DataPersistence<T = unknown> {
 
   async get(): Promise<PersistenceItem<T> | null> {
     const redis = getRedis();
-    const item = await redis.get<PersistenceItem<T> | null>(this.dataKey());
+    const item = await redis.get(this.dataKey());
     return item ?? null;
   }
 
