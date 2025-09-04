@@ -28,7 +28,7 @@ export class DataPersistence<T = unknown> {
 
   async get(): Promise<PersistenceItem<T> | null> {
     const redis = getRedis();
-    const item = await redis.get(this.dataKey());
+    const item = await redis.get<PersistenceItem<T> | null>(this.dataKey());
     return item ?? null;
   }
 
@@ -51,7 +51,7 @@ export class DataPersistence<T = unknown> {
   async exportAll(): Promise<{ current: PersistenceItem<T> | null; backups: Array<PersistenceItem<T>> }> {
     const redis = getRedis();
     const current = await this.get();
-    const raws: string[] = await redis.zrangebyscore(this.backupsKey(), 0, Date.now());
+    const raws: string[] = await redis.zrange(this.backupsKey(), 0, Date.now());
     const backups = raws.map((r) => JSON.parse(r) as PersistenceItem<T>);
     return { current, backups };
   }
