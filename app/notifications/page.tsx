@@ -7,13 +7,13 @@ export default function NotificationsPage() {
   const [list, setList] = useState<Notification[]>([]);
 
   const load = async () => {
-    const res = await fetch("/api/notifications", { cache: "no-store" });
+    const res = await fetch("/api/notifications", { cache: "no-store", credentials: "include" });
     if (res.ok) setList(await res.json());
   };
   useEffect(() => { load(); }, []);
 
   const markAll = async () => {
-    await fetch("/api/notifications", { method: "PUT" });
+    await fetch("/api/notifications", { method: "PUT", credentials: "include" });
     load();
   };
 
