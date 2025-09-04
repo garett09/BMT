@@ -1,5 +1,5 @@
 "use client";
-import { Search, Bell, Settings, User } from "lucide-react";
+import { Search, Bell } from "lucide-react";
 import Link from "next/link";
 
 export function TopBar() {
@@ -16,9 +16,6 @@ export function TopBar() {
           </div>
           <Link href="/notifications" className="rounded-lg p-2 border border-[var(--border)] bg-[var(--card)]">
             <Bell size={16} />
-          </Link>
-          <Link href="/settings" className="rounded-lg p-2 border border-[var(--border)] bg-[var(--card)]">
-            <Settings size={16} />
           </Link>
           <form action="/api/auth/logout" method="post">
             <button className="rounded-lg p-2 border border-[var(--border)] bg-[var(--card)]" title="Logout">⎋</button>

@@ -18,7 +18,6 @@ export async function middleware(req: NextRequest) {
     "/savings",
     "/shared",
     "/notifications",
-    "/settings",
   ].some((p) => path === p || path.startsWith(p + "/"));
   if (isProtected && !token) {
     url.pathname = "/login";
