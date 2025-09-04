@@ -11,7 +11,8 @@ export type RateLimitResult = {
 
 export async function rateLimit(req: NextRequest, key: string, limit: number, windowSeconds: number): Promise<RateLimitResult> {
   const redis = getRedis();
-  const ip = (req.headers.get("x-forwarded-for") || req.ip || "unknown").split(",")[0].trim();
+  const forwarded = req.headers.get("x-forwarded-for");
+  const ip = (forwarded || "").split(",")[0].trim() || "unknown";
   const rlKey = `ratelimit:${key}:${ip}`;
   const count = await redis.incr(rlKey);
   if (count === 1) await redis.expire(rlKey, windowSeconds);
