@@ -6,6 +6,7 @@ import type { TransactionRecord } from "@/lib/redis";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { KpiCard } from "@/components/KpiCard";
 import { Tabs } from "@/components/ui/Tabs";
+import { Segmented } from "@/components/ui/Segmented";
 import { StatCard } from "@/components/StatCard";
 import { Section } from "@/components/Section";
 import { TrendChart } from "@/components/charts/TrendChart";
@@ -18,16 +19,13 @@ import { Button } from "@/components/ui/Button";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { ListSkeleton } from "@/components/ui/ListSkeleton";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
-import { ListCard } from "@/components/ui/ListCard";
-import { Chip } from "@/components/ui/Chip";
-import { QuickAddAccount } from "@/components/QuickAddAccount";
+// removed Accounts tab content; keep imports minimal
 import { RadialProgress } from "@/components/ui/RadialProgress";
 
 export function EnhancedDashboard() {
   const [txs, setTxs] = useState<TransactionRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  type Account = { id: string; name: string; balance: number; provider?: string; subtype?: string };
-  const [accounts, setAccounts] = useState<Account[]>([]);
+  // accounts are handled in dedicated page
   const [budgetOpen, setBudgetOpen] = useState(false);
   const [savingsOpen, setSavingsOpen] = useState(false);
   const [budget, setBudget] = useState<string>("");
@@ -41,8 +39,7 @@ export function EnhancedDashboard() {
     setLoading(true);
     const res = await fetch("/api/transactions", { cache: "no-store", credentials: "include" });
     if (res.ok) setTxs(await res.json());
-    const ar = await fetch("/api/accounts", { cache: "no-store", credentials: "include" });
-    if (ar.ok) setAccounts(await ar.json());
+    // accounts fetched in dedicated Accounts page
     const mb = await fetch(`/api/budget?month=${monthISO}`, { cache: "no-store", credentials: "include" });
     if (mb.ok) { const d = await mb.json(); setMonthBudget(typeof d.amount === "number" ? d.amount : null); }
     const sg = await fetch("/api/savings", { cache: "no-store", credentials: "include" });
@@ -177,6 +174,90 @@ export function EnhancedDashboard() {
     return [...map.entries()].sort(([a],[b])=> a < b ? -1 : 1).slice(-8).map(([name, v])=> ({ name, income: v.income, expense: v.expense }));
   }, [txs]);
 
+  // Monthly summaries for Historical/Predictions
+  const monthlySummary = useMemo(() => {
+    const map = new Map<string, { income: number; expense: number }>();
+    for (const t of txs) {
+      const key = (t.date || t.createdAt).slice(0, 7);
+      const curr = map.get(key) || { income: 0, expense: 0 };
+      curr[t.type] += t.amount as number;
+      map.set(key, curr);
+    }
+    const rows = [...map.entries()]
+      .sort(([a], [b]) => (a < b ? -1 : 1))
+      .map(([month, v]) => ({ month, income: v.income, expense: v.expense, balance: v.income - v.expense }));
+    const last6 = rows.slice(-6);
+    return last6;
+  }, [txs]);
+
+  const predictions = useMemo(() => {
+    const rows = monthlySummary;
+    const last3 = rows.slice(-3);
+    const avgIncome = last3.length ? Math.round(last3.reduce((s, r) => s + r.income, 0) / last3.length) : 0;
+    const avgExpense = last3.length ? Math.round(last3.reduce((s, r) => s + r.expense, 0) / last3.length) : 0;
+    const projectedIncome = Math.max(0, avgIncome);
+    const projectedExpense = Math.max(0, Math.round((avgExpense + forecast.recommendedBudget) / 2));
+    const projectedNet = projectedIncome - projectedExpense;
+    const weekly = Array.from({ length: 4 }).map((_, i) => ({ name: `W${i + 1}`, income: i === 0 ? Math.round(projectedIncome) : 0, expense: Math.round(projectedExpense / 4) }));
+    return { projectedIncome, projectedExpense, projectedNet, weekly };
+  }, [monthlySummary, forecast.recommendedBudget]);
+
+  const lastMonth = useMemo(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 1);
+    return d.toISOString().slice(0, 7);
+  }, []);
+
+  const topCatsLastMonth = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const t of txs) {
+      const m = (t.date || t.createdAt).slice(0, 7);
+      if (t.type !== "expense" || m !== lastMonth) continue;
+      map.set(t.category, (map.get(t.category) || 0) + t.amount);
+    }
+    return [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
+  }, [txs, lastMonth]);
+
+  // Historical range selection
+  const [histRange, setHistRange] = useState<"All" | "Year" | "Month" | "Week">("Month");
+
+  const historicalRows = useMemo(() => {
+    if (histRange === "All") {
+      const income = txs.filter(t=>t.type==="income").reduce((s,t)=>s+t.amount,0);
+      const expense = txs.filter(t=>t.type==="expense").reduce((s,t)=>s+t.amount,0);
+      return [{ label: "All-time", income, expense, balance: income - expense }];
+    }
+    if (histRange === "Year") {
+      const m = new Map<string, { income: number; expense: number }>();
+      for (const t of txs) {
+        const y = (t.date || t.createdAt).slice(0,4);
+        const v = m.get(y) || { income: 0, expense: 0 };
+        v[t.type] += t.amount as number;
+        m.set(y, v);
+      }
+      return [...m.entries()].sort(([a],[b])=> a < b ? -1 : 1).map(([label, v])=> ({ label, income: v.income, expense: v.expense, balance: v.income - v.expense }));
+    }
+    if (histRange === "Week") {
+      const m = new Map<string, { income: number; expense: number }>();
+      for (const t of txs) {
+        const d = new Date(t.date || t.createdAt);
+        const tmp = new Date(d.getTime());
+        const dayNum = (d.getUTCDay() + 6) % 7; // Monday=0
+        tmp.setUTCDate(d.getUTCDate() - dayNum + 3);
+        const firstThursday = tmp.getTime();
+        const jan4 = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 4));
+        const week = 1 + Math.round((firstThursday - Date.UTC(jan4.getUTCFullYear(), 0, 4)) / (7 * 24 * 3600 * 1000));
+        const key = `${tmp.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
+        const v = m.get(key) || { income: 0, expense: 0 };
+        v[t.type] += t.amount as number;
+        m.set(key, v);
+      }
+      return [...m.entries()].sort(([a],[b])=> a < b ? -1 : 1).slice(-12).map(([label, v])=> ({ label, income: v.income, expense: v.expense, balance: v.income - v.expense }));
+    }
+    // Month (default)
+    return monthlySummary.map(r=> ({ label: r.month, income: r.income, expense: r.expense, balance: r.balance }));
+  }, [txs, histRange, monthlySummary]);
+
   const goalStats = useMemo(() => {
     const target = Number(goal.targetAmount || 0);
     const current = Number(goal.currentAmount || 0);
@@ -212,7 +293,7 @@ export function EnhancedDashboard() {
         )}
       </div>
 
-      <Tabs items={["Overview", "Trends", "Insights", "Budget", "Predictions", "Historical", "Accounts"]} active={tab} onChange={setTab} />
+      <Tabs items={["Overview", "Trends", "Insights", "Budget", "Predictions", "Historical"]} active={tab} onChange={setTab} />
 
       {tab === "Overview" && (
       <div className="grid grid-cols-1 gap-3">
@@ -305,18 +386,67 @@ export function EnhancedDashboard() {
       )}
 
       {tab === "Predictions" && (
-        <Section title="Next Month Prediction">
-          <div className="text-sm">Net Prediction: <span className="font-semibold">₱{(analytics.balance).toLocaleString()}</span></div>
-        </Section>
+        <div className="grid grid-cols-1 gap-3">
+          <Section title="Next Month Projection">
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <KpiCard label="Projected Income" value={`₱${predictions.projectedIncome.toLocaleString()}`} tone="pos" />
+              <KpiCard label="Projected Expense" value={`₱${predictions.projectedExpense.toLocaleString()}`} tone="neg" />
+              <KpiCard label="Projected Net" value={`₱${predictions.projectedNet.toLocaleString()}`} tone={predictions.projectedNet >= 0 ? "pos" : "neg"} />
+            </div>
+            <div className="w-full h-40 mt-3">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={predictions.weekly}>
+                  <XAxis dataKey="name" />
+                  <YAxis hide />
+                  <Tooltip formatter={(v: number)=>`₱${Number(v).toLocaleString()}`} />
+                  <Bar dataKey="income" fill="#22c55e" radius={[4,4,0,0]} />
+                  <Bar dataKey="expense" fill="#ef4444" radius={[4,4,0,0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </Section>
+
+          <Section title="Monthly Averages (last 3)">
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <KpiCard label="Avg Income" value={`₱${(monthlySummary.slice(-3).reduce((s,r)=>s+r.income,0)/Math.max(1, monthlySummary.slice(-3).length)|0).toLocaleString()}`} tone="pos" />
+              <KpiCard label="Avg Expense" value={`₱${(monthlySummary.slice(-3).reduce((s,r)=>s+r.expense,0)/Math.max(1, monthlySummary.slice(-3).length)|0).toLocaleString()}`} tone="neg" />
+              <KpiCard label="Avg Net" value={`₱${(monthlySummary.slice(-3).reduce((s,r)=>s+(r.income-r.expense),0)/Math.max(1, monthlySummary.slice(-3).length)|0).toLocaleString()}`} />
+            </div>
+          </Section>
+        </div>
       )}
 
       {tab === "Historical" && (
         <div className="grid grid-cols-1 gap-3">
-          <Section title="Year over Year">
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <KpiCard label="Income YoY" value={`+${Math.round(5)}%`} tone="pos" />
-              <KpiCard label="Expense YoY" value={`-${Math.round(2)}%`} tone="pos" />
-              <KpiCard label="Balance YoY" value={`+${Math.round(7)}%`} tone="pos" />
+          <Section title="Historical Summary">
+            <div className="mb-2"><Segmented value={histRange} onChange={(v)=> setHistRange(v as any)} options={["All","Year","Month","Week"]} /></div>
+            <div className="text-xs space-y-1">
+              <div className="grid grid-cols-4 gap-2 text-[var(--muted)]"><div>Period</div><div className="text-right">Income</div><div className="text-right">Expense</div><div className="text-right">Balance</div></div>
+              {historicalRows.map((r, idx, arr) => {
+                const prev = idx > 0 ? arr[idx-1] : undefined;
+                const delta = prev ? ((r.balance - prev.balance) / Math.max(1, Math.abs(prev.balance))) * 100 : 0;
+                return (
+                  <div key={r.label} className="grid grid-cols-4 gap-2">
+                    <div>{r.label}</div>
+                    <div className="text-right">₱{r.income.toLocaleString()}</div>
+                    <div className="text-right">₱{r.expense.toLocaleString()}</div>
+                    <div className="text-right">₱{r.balance.toLocaleString()} {idx>0 && <span className={delta>=0?"text-[var(--positive)]":"text-[var(--negative)]"}>({Math.round(delta)}%)</span>}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </Section>
+
+          <Section title={`Top Categories • ${lastMonth}`}>
+            <div className="text-xs space-y-1">
+              {topCatsLastMonth.length === 0 ? (
+                <div className="text-[var(--muted)]">No data for last month.</div>
+              ) : topCatsLastMonth.map(([name, value]) => (
+                <div key={name} className="flex items-center justify-between border-b border-[var(--border)]/50 pb-1">
+                  <span>{name}</span>
+                  <span className="text-white">₱{value.toLocaleString()}</span>
+                </div>
+              ))}
             </div>
           </Section>
         </div>
@@ -324,26 +454,7 @@ export function EnhancedDashboard() {
 
       
 
-      {tab === "Accounts" && (
-        <div className="grid grid-cols-1 gap-3">
-          <Section title="Balances">
-            <div className="grid grid-cols-2 gap-2">
-              <StatCard title="Total" value={`₱${accounts.reduce((s,a)=>s+(Number(a.balance)||0),0).toLocaleString()}`} icon={<DollarSign size={16} />} />
-              <StatCard title="eWallets" value={`₱${accounts.filter(a=>a.subtype==='ewallet').reduce((s,a)=>s+(Number(a.balance)||0),0).toLocaleString()}`} icon={<DollarSign size={16} />} />
-            </div>
-          </Section>
-          <Section title="Quick Add">
-            <QuickAddAccount onAdded={async()=>{ const ar = await fetch("/api/accounts", { cache: "no-store", credentials: "include" }); if (ar.ok) setAccounts(await ar.json()); }} />
-          </Section>
-          <Section title="Your Accounts">
-            <div className="space-y-2 text-sm">
-              {accounts.length===0 ? <div className="text-[var(--muted)]">No accounts yet.</div> : accounts.map(a=> (
-                <div key={a.id} className="flex items-center justify-between border rounded-md card p-3"><div>{a.name} • {a.subtype || a.provider || "account"}</div><div className="font-semibold">₱{Number(a.balance||0).toLocaleString()}</div></div>
-              ))}
-            </div>
-          </Section>
-        </div>
-      )}
+      
 
       <Modal open={budgetOpen} onClose={()=> setBudgetOpen(false)} title="Adjust Monthly Budget">
         <form onSubmit={async (e)=>{ e.preventDefault(); const amt = Number(budget||0); await fetch("/api/budget", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ month: monthISO, amount: amt }), credentials: "include" }); setMonthBudget(amt); setBudgetOpen(false); }} className="grid grid-cols-2 gap-2">
