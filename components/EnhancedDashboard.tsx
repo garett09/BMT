@@ -15,6 +15,8 @@ import { ArrowDownRight, ArrowUpRight, DollarSign, Target } from "lucide-react";
 import { QuickActionCard } from "@/components/QuickActionCard";
 import { Button } from "@/components/ui/Button";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { ListSkeleton } from "@/components/ui/ListSkeleton";
+import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { QuickAddAccount } from "@/components/QuickAddAccount";
 
 export function EnhancedDashboard() {
@@ -23,16 +25,16 @@ export function EnhancedDashboard() {
   type Account = { id: string; name: string; balance: number; provider?: string; subtype?: string };
   const [accounts, setAccounts] = useState<Account[]>([]);
 
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      const res = await fetch("/api/transactions", { cache: "no-store", credentials: "include" });
-      if (res.ok) setTxs(await res.json());
-      const ar = await fetch("/api/accounts", { cache: "no-store", credentials: "include" });
-      if (ar.ok) setAccounts(await ar.json());
-      setLoading(false);
-    })();
-  }, []);
+  const fetchAll = async () => {
+    setLoading(true);
+    const res = await fetch("/api/transactions", { cache: "no-store", credentials: "include" });
+    if (res.ok) setTxs(await res.json());
+    const ar = await fetch("/api/accounts", { cache: "no-store", credentials: "include" });
+    if (ar.ok) setAccounts(await ar.json());
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchAll(); }, []);
 
   const analytics = useMemo(() => computeAnalytics(txs), [txs]);
   const monthISO = new Date().toISOString().slice(0, 7);
@@ -82,6 +84,7 @@ export function EnhancedDashboard() {
   const [tab, setTab] = useState("Overview");
 
   return (
+    <PullToRefresh onRefresh={fetchAll}>
     <div className="space-y-4">
       <div className="grid grid-cols-3 gap-2">
         <KpiCard label="Income" value={`₱${analytics.totalIncome.toLocaleString()}`} tone="pos" />
@@ -212,8 +215,9 @@ export function EnhancedDashboard() {
         </div>
       )}
 
-      {loading && <div className="text-xs text-muted-foreground">Loading data…</div>}
+      {loading && <ListSkeleton count={3} />}
     </div>
+    </PullToRefresh>
   );
 }
 
