@@ -123,7 +123,7 @@ export async function PUT(req: NextRequest) {
   if (!existing || existing.userId !== userId) return applyCors(req, withSecurityHeaders(NextResponse.json({ error: "Not found" }, { status: 404 })));
   const merged: TransactionRecord = {
     ...existing,
-    type: body.type ?? existing.type,
+    type: (body.type === "income" || body.type === "expense") ? body.type : existing.type,
     amount: typeof body.amount === "number" ? body.amount : existing.amount,
     category: body.category ?? existing.category,
     description: body.description ?? existing.description,
