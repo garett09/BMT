@@ -21,6 +21,7 @@ import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { ListCard } from "@/components/ui/ListCard";
 import { Chip } from "@/components/ui/Chip";
 import { QuickAddAccount } from "@/components/QuickAddAccount";
+import { RadialProgress } from "@/components/ui/RadialProgress";
 
 export function EnhancedDashboard() {
   const [txs, setTxs] = useState<TransactionRecord[]>([]);
@@ -30,7 +31,11 @@ export function EnhancedDashboard() {
   const [budgetOpen, setBudgetOpen] = useState(false);
   const [savingsOpen, setSavingsOpen] = useState(false);
   const [budget, setBudget] = useState<string>("");
+  const [monthBudget, setMonthBudget] = useState<number | null>(null);
   const [goal, setGoal] = useState({ id: "", name: "", targetAmount: "", currentAmount: "0", dueDate: "" });
+  type SavingsGoal = { id: string; name: string; targetAmount: number; currentAmount: number; dueDate?: string };
+  const [goals, setGoals] = useState<SavingsGoal[]>([]);
+  const [confetti, setConfetti] = useState(false);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -38,6 +43,10 @@ export function EnhancedDashboard() {
     if (res.ok) setTxs(await res.json());
     const ar = await fetch("/api/accounts", { cache: "no-store", credentials: "include" });
     if (ar.ok) setAccounts(await ar.json());
+    const mb = await fetch(`/api/budget?month=${monthISO}`, { cache: "no-store", credentials: "include" });
+    if (mb.ok) { const d = await mb.json(); setMonthBudget(typeof d.amount === "number" ? d.amount : null); }
+    const sg = await fetch("/api/savings", { cache: "no-store", credentials: "include" });
+    if (sg.ok) setGoals(await sg.json());
     setLoading(false);
   };
 
@@ -103,12 +112,13 @@ export function EnhancedDashboard() {
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const dayOfMonth = today.getDate();
     const avgDailySpend = totalExpense / Math.max(1, dayOfMonth);
-    const burnRate = forecast.recommendedBudget > 0 ? totalExpense / forecast.recommendedBudget : 0;
+    const targetBudget = monthBudget ?? forecast.recommendedBudget;
+    const burnRate = targetBudget > 0 ? totalExpense / targetBudget : 0;
     const byCat = expenses.reduce((map: Record<string, number>, t) => { map[t.category] = (map[t.category] || 0) + t.amount; return map; }, {} as Record<string, number>);
     const top = Object.entries(byCat).sort((a,b)=>b[1]-a[1])[0];
     const topCategoryShare = top ? top[1] / Math.max(1, totalExpense) : 0;
-    return { totalExpense, totalIncome, avgDailySpend, burnRate, topCategory: top?.[0] || "-", topCategoryShare, daysInMonth, dayOfMonth };
-  }, [txs, monthISO, forecast.recommendedBudget]);
+    return { totalExpense, totalIncome, avgDailySpend, burnRate, topCategory: top?.[0] || "-", topCategoryShare, daysInMonth, dayOfMonth, targetBudget };
+  }, [txs, monthISO, forecast.recommendedBudget, monthBudget]);
 
   const spendVolatility = useMemo(() => {
     // Coefficient of variation of daily expenses in last 30 days
@@ -167,6 +177,13 @@ export function EnhancedDashboard() {
     return [...map.entries()].sort(([a],[b])=> a < b ? -1 : 1).slice(-8).map(([name, v])=> ({ name, income: v.income, expense: v.expense }));
   }, [txs]);
 
+  const goalStats = useMemo(() => {
+    const target = Number(goal.targetAmount || 0);
+    const current = Number(goal.currentAmount || 0);
+    const pct = target > 0 ? Math.min(1, current / target) : 0;
+    return { target, current, pct };
+  }, [goal]);
+
   return (
     <PullToRefresh onRefresh={fetchAll}>
     <div className="space-y-4">
@@ -177,11 +194,15 @@ export function EnhancedDashboard() {
       </div>
 
       <div className="rounded-md border card p-3">
-        <div className="flex items-baseline justify-between">
-          <div className="text-sm font-medium">This Month Budget</div>
-          <div className="text-xs text-[var(--muted)]">Conf {Math.round(forecast.confidence * 100)}%</div>
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-sm font-medium">This Month Budget</div>
+            <div className="text-xs text-[var(--muted)]">Conf {Math.round(forecast.confidence * 100)}%</div>
+          </div>
+          <RadialProgress value={analytics.totalExpense} max={monthTx.targetBudget} label="Spent" />
         </div>
-        <div className="text-xl font-semibold brand-text">₱{forecast.recommendedBudget.toLocaleString()}</div>
+        <div className="mt-2 text-xl font-semibold brand-text">₱{(monthTx.targetBudget).toLocaleString()}</div>
+        <div className="text-xs text-[var(--muted)]">Safe per-day ≈ ₱{Math.round((forecast.recommendedBudget - analytics.totalExpense) / Math.max(1, monthTx.daysInMonth - monthTx.dayOfMonth)).toLocaleString()}</div>
         {forecast.insights.length > 0 && (
           <ul className="mt-2 list-disc pl-4 text-xs text-[var(--muted)]">
             {forecast.insights.map((i, idx) => (
@@ -196,8 +217,6 @@ export function EnhancedDashboard() {
       {tab === "Overview" && (
       <div className="grid grid-cols-1 gap-3">
         <div className="grid grid-cols-2 gap-3">
-          <StatCard title="Total Income" value={`₱${analytics.totalIncome.toLocaleString()}`} icon={<ArrowUpRight size={16} />} tone="pos" />
-          <StatCard title="Total Expenses" value={`₱${analytics.totalExpense.toLocaleString()}`} icon={<ArrowDownRight size={16} />} tone="neg" />
           <StatCard title="Net Income" value={`₱${analytics.balance.toLocaleString()}`} icon={<DollarSign size={16} />} />
           <StatCard title="Transactions" value={`${txs.length}`} icon={<Target size={16} />} />
         </div>
@@ -327,24 +346,82 @@ export function EnhancedDashboard() {
       )}
 
       <Modal open={budgetOpen} onClose={()=> setBudgetOpen(false)} title="Adjust Monthly Budget">
-        <form onSubmit={async (e)=>{ e.preventDefault(); setBudgetOpen(false); }} className="grid grid-cols-2 gap-2">
+        <form onSubmit={async (e)=>{ e.preventDefault(); const amt = Number(budget||0); await fetch("/api/budget", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ month: monthISO, amount: amt }), credentials: "include" }); setMonthBudget(amt); setBudgetOpen(false); }} className="grid grid-cols-2 gap-2">
           <div className="col-span-2 text-xs text-[var(--muted)]">Set your target spend for {monthISO}.</div>
           <div className="col-span-2 relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]">₱</span>
-            <input className="border rounded-md pl-7 pr-3 py-2 w-full" inputMode="decimal" step="0.01" type="number" placeholder="0.00" value={budget} onChange={(e)=> setBudget(e.target.value)} />
+            <input className="border rounded-md pl-7 pr-3 py-2 w-full" inputMode="decimal" step="0.01" type="number" placeholder={String(monthBudget ?? forecast.recommendedBudget)} value={budget} onChange={(e)=> setBudget(e.target.value)} />
           </div>
           <Button type="submit" className="col-span-2" fullWidth>Save</Button>
         </form>
       </Modal>
 
       <Modal open={savingsOpen} onClose={()=> setSavingsOpen(false)} title="Savings Goal">
-        <form onSubmit={async (e)=>{ e.preventDefault(); const payload = { id: goal.id || String(Date.now()), name: goal.name || "Goal", targetAmount: Number(goal.targetAmount||0), currentAmount: Number(goal.currentAmount||0), dueDate: goal.dueDate || undefined }; const res = await fetch("/api/savings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), credentials: "include" }); if (res.ok) { setSavingsOpen(false); setGoal({ id: "", name: "", targetAmount: "", currentAmount: "0", dueDate: "" }); } }} className="grid grid-cols-2 gap-2">
-          <input className="border rounded-md px-3 py-2 col-span-2" placeholder="Goal name (e.g., Emergency Fund)" value={goal.name} onChange={(e)=> setGoal({ ...goal, name: e.target.value })} />
-          <input className="border rounded-md px-3 py-2" type="number" placeholder="Target amount" value={goal.targetAmount} onChange={(e)=> setGoal({ ...goal, targetAmount: e.target.value })} />
-          <input className="border rounded-md px-3 py-2" type="number" placeholder="Current amount" value={goal.currentAmount} onChange={(e)=> setGoal({ ...goal, currentAmount: e.target.value })} />
-          <input className="border rounded-md px-3 py-2 col-span-2" type="date" value={goal.dueDate} onChange={(e)=> setGoal({ ...goal, dueDate: e.target.value })} />
-          <Button type="submit" className="col-span-2" fullWidth>Save Goal</Button>
+        <form onSubmit={async (e)=>{ e.preventDefault(); const payload = { id: goal.id || String(Date.now()), name: goal.name || "Goal", targetAmount: Number(goal.targetAmount||0), currentAmount: Number(goal.currentAmount||0), dueDate: goal.dueDate || undefined }; const res = await fetch("/api/savings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), credentials: "include" }); if (res.ok) { const list = await (await fetch("/api/savings", { cache: "no-store", credentials: "include" })).json(); setGoals(list); const hit = payload.targetAmount > 0 && payload.currentAmount >= payload.targetAmount; if (hit) { setConfetti(true); setTimeout(()=> setConfetti(false), 1200); } setSavingsOpen(false); setGoal({ id: "", name: "", targetAmount: "", currentAmount: "0", dueDate: "" }); } }} className="grid grid-cols-2 gap-3 relative">
+          <div className="col-span-2 grid grid-cols-3 gap-3 items-center">
+            <div className="col-span-1 flex justify-center"><RadialProgress value={goalStats.current} max={Math.max(1, goalStats.target)} label="Goal" /></div>
+            <div className="col-span-2 space-y-2">
+              <input className="border rounded-md px-3 py-2 w-full" placeholder="Goal name (e.g., Emergency Fund)" value={goal.name} onChange={(e)=> setGoal({ ...goal, name: e.target.value })} />
+              <div className="grid grid-cols-2 gap-2">
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]">₱</span>
+                  <input className="border rounded-md pl-7 pr-3 py-2 w-full" type="number" inputMode="decimal" step="0.01" placeholder="Target" value={goal.targetAmount} onChange={(e)=> setGoal({ ...goal, targetAmount: e.target.value })} />
+                </div>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]">₱</span>
+                  <input className="border rounded-md pl-7 pr-3 py-2 w-full" type="number" inputMode="decimal" step="0.01" placeholder="Current" value={goal.currentAmount} onChange={(e)=> setGoal({ ...goal, currentAmount: e.target.value })} />
+                </div>
+              </div>
+              <div className="flex gap-2 overflow-x-auto">
+                {[1000,5000,10000].map((n)=> (
+                  <button key={n} type="button" className="text-[10px] border rounded-full px-2.5 py-1 text-[var(--muted)] hover:text-[var(--foreground)]" onClick={()=> setGoal((g)=> ({ ...g, currentAmount: String(Number(g.currentAmount||0) + n) }))}>+{n.toLocaleString()}</button>
+                ))}
+                <button type="button" className="text-[10px] border rounded-full px-2.5 py-1 text-[var(--muted)] hover:text-[var(--foreground)]" onClick={()=> setGoal((g)=> ({ ...g, currentAmount: g.targetAmount }))}>Max</button>
+              </div>
+            </div>
+          </div>
+          <div className="col-span-2 grid grid-cols-3 gap-2 items-center">
+            <input className="border rounded-md px-3 py-2 col-span-2" type="date" value={goal.dueDate} onChange={(e)=> setGoal({ ...goal, dueDate: e.target.value })} />
+            <div className="flex gap-2">
+              {[[3,"3m"],[6,"6m"],[12,"12m"]].map(([m,label])=> (
+                <button key={String(label)} type="button" className="text-[10px] border rounded-full px-2.5 py-1 text-[var(--muted)] hover:text-[var(--foreground)]" onClick={()=> { const d = new Date(); d.setMonth(d.getMonth() + (m as number)); setGoal((g)=> ({ ...g, dueDate: d.toISOString().slice(0,10) })); }}>{label as string}</button>
+              ))}
+            </div>
+          </div>
+          {goalStats.target > 0 && (
+            <div className="col-span-2 text-xs text-[var(--muted)]">Progress: {Math.round(goalStats.pct*100)}% • Remaining ₱{Math.max(0, goalStats.target - goalStats.current).toLocaleString()}</div>
+          )}
+          <Button type="submit" className="col-span-2" fullWidth disabled={!goal.name.trim() || !(goalStats.target > 0) || goalStats.current > goalStats.target}>Save Goal</Button>
+          {confetti && (
+            <div className="pointer-events-none absolute inset-0 overflow-hidden">
+              {[...Array(20)].map((_,i)=> (
+                <span key={i} className="absolute text-xs" style={{ left: `${(i*13)%100}%`, top: `${(i*7)%100}%`, animation: "fall 1.2s linear forwards", color: i%2?"#22c55e":"#a855f7" }}>★</span>
+              ))}
+              <style>{`@keyframes fall{0%{transform: translateY(-10px) rotate(0)}100%{transform: translateY(120px) rotate(360deg); opacity:0}}`}</style>
+            </div>
+          )}
         </form>
+        <div className="mt-4 space-y-2">
+          <div className="text-xs text-[var(--muted)] px-1">Your Goals</div>
+          {goals.length === 0 ? (
+            <div className="text-xs text-[var(--muted)] px-1">No goals yet.</div>
+          ) : goals.map((g)=> {
+            const pct = g.targetAmount > 0 ? Math.min(1, g.currentAmount / g.targetAmount) : 0;
+            return (
+              <div key={g.id} className="rounded-md border card p-3">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-medium">{g.name}</div>
+                  <div className="text-xs">₱{g.currentAmount.toLocaleString()} / ₱{g.targetAmount.toLocaleString()}</div>
+                </div>
+                <div className="mt-2"><ProgressBar value={g.currentAmount} max={Math.max(1, g.targetAmount)} /></div>
+                <div className="mt-2 flex gap-2">
+                  <Button variant="secondary" onClick={()=> setGoal({ id: g.id, name: g.name, targetAmount: String(g.targetAmount), currentAmount: String(g.currentAmount), dueDate: g.dueDate || "" })}>Edit</Button>
+                  <Button variant="danger" onClick={async()=>{ await fetch(`/api/savings?id=${g.id}`, { method: "DELETE", credentials: "include" }); const list = await (await fetch("/api/savings", { cache: "no-store", credentials: "include" })).json(); setGoals(list); }}>Delete</Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </Modal>
       {loading && <ListSkeleton count={3} />}
     </div>
