@@ -40,7 +40,7 @@ export class DataPersistence<T = unknown> {
 
     await redis.set(this.dataKey(), item);
     // Record a backup snapshot in a sorted set with timestamp as score
-    await redis.zadd(this.backupsKey(), Date.now(), JSON.stringify(item));
+    await redis.zadd(this.backupsKey(), { score: Date.now(), member: JSON.stringify(item) });
     // Keep last 30 days of snapshots
     const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
     const minScore = Date.now() - THIRTY_DAYS_MS;
@@ -51,7 +51,7 @@ export class DataPersistence<T = unknown> {
   async exportAll(): Promise<{ current: PersistenceItem<T> | null; backups: Array<PersistenceItem<T>> }> {
     const redis = getRedis();
     const current = await this.get();
-    const raws: string[] = await redis.zrange(this.backupsKey(), 0, Date.now());
+    const raws: string[] = await redis.zrangebyscore(this.backupsKey(), 0, Date.now());
     const backups = raws.map((r) => JSON.parse(r) as PersistenceItem<T>);
     return { current, backups };
   }
