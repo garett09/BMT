@@ -32,7 +32,6 @@ export default function TransactionsPage() {
   const [editForm, setEditForm] = useState<(FormState & { id: string }) | null>(null);
   const router = useRouter();
   const [accounts, setAccounts] = useState<{ id: string; name: string; provider?: string }[]>([]);
-  const [filterAccount, setFilterAccount] = useState<string>("");
 
   const fetchTxs = async () => {
     setLoading(true);
@@ -86,15 +85,6 @@ export default function TransactionsPage() {
     <div className="min-h-dvh flex flex-col">
       <main className="flex-1 p-4 space-y-4 max-w-md mx-auto w-full">
         <h1 className="text-xl font-semibold">Transactions</h1>
-        <div className="grid grid-cols-2 gap-2">
-          <SearchableSelect
-            className="col-span-2"
-            options={[{ value: "", label: "All Accounts" }, ...accounts.map((a) => ({ value: a.id, label: `${a.name}${a.provider ? " • " + a.provider : ""}` }))]}
-            value={filterAccount}
-            onChange={(v) => setFilterAccount(v)}
-            placeholder="Filter by account"
-          />
-        </div>
 
         <form onSubmit={addTx} className="grid grid-cols-2 gap-2">
         <select className="border rounded-md px-3 py-2" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as any })}>
@@ -140,9 +130,7 @@ export default function TransactionsPage() {
         ) : txs.length === 0 ? (
           <p className="text-sm text-muted-foreground">No transactions yet.</p>
         ) : (
-          txs
-          .filter((t) => !filterAccount || t.accountId === filterAccount)
-          .map((t) => (
+          txs.map((t) => (
             <ListCard
               key={t.id}
               left={<div className="flex items-center gap-2"><Chip tone={t.type === "income" ? "pos" : "neg"}>{t.type}</Chip><span>{t.category}</span>{t.accountId && <span className="text-[10px] text-[var(--muted)]">• {accounts.find(a => a.id === t.accountId)?.name || t.accountId}</span>}</div>}
