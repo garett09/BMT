@@ -15,8 +15,8 @@ export async function GET(req: NextRequest) {
     const redis = getRedis();
     const pong = await redis.ping();
     redisOk = pong === "PONG" || pong === "pong";
-  } catch (e: any) {
-    error = e?.message;
+  } catch (e: unknown) {
+    error = e instanceof Error ? e.message : "unknown";
   }
   const res = NextResponse.json({ ok: redisOk, error });
   return applyCors(req, withSecurityHeaders(res));

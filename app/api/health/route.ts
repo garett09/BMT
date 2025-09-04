@@ -16,8 +16,8 @@ export async function GET() {
     const redis = getRedis();
     const pong = await redis.ping();
     redisOk = pong === "PONG" || pong === "pong";
-  } catch (e: any) {
-    redisError = e?.message || "Redis connection failed";
+  } catch (e: unknown) {
+    redisError = e instanceof Error ? e.message : "Redis connection failed";
   }
 
   const ok = missing.length === 0 && redisOk;

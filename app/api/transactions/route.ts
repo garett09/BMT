@@ -43,9 +43,10 @@ export async function GET(req: NextRequest) {
     }
     const res = NextResponse.json(txs);
     return applyCors(req, withSecurityHeaders(res));
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "unknown";
     const res = NextResponse.json([], { status: 200 });
-    res.headers.set("X-Data-Error", String(err?.message || err));
+    res.headers.set("X-Data-Error", String(message));
     return applyCors(req, withSecurityHeaders(res));
   }
 }
