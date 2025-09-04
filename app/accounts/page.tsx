@@ -7,10 +7,14 @@ import { Modal } from "@/components/ui/Modal";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { providers } from "@/components/constants";
 import { BottomNav } from "@/components/ui/BottomNav";
+import { PullToRefresh } from "@/components/ui/PullToRefresh";
+import { useToast } from "@/components/ui/Toast";
+import { ListSkeleton } from "@/components/ui/ListSkeleton";
 
 type Account = { id: string; name: string; type: "cash" | "bank" | "credit" | "other"; balance: number; provider?: string; subtype?: "debit" | "savings" | "checking" | "ewallet" | "credit" | "other" };
 
 export default function AccountsPage() {
+  const { push } = useToast();
   const [list, setList] = useState<Account[]>([]);
   const [form, setForm] = useState<Account>({ id: "", name: "", type: "cash", balance: 0, provider: "", subtype: "savings" });
   const [loading, setLoading] = useState(true);
@@ -44,7 +48,7 @@ export default function AccountsPage() {
 
         <div className="space-y-2">
           {loading ? (
-            <p className="text-sm text-muted-foreground">Loading…</p>
+            <ListSkeleton />
           ) : list.length === 0 ? (
             <p className="text-sm text-muted-foreground">No accounts yet.</p>
           ) : (
@@ -79,6 +83,7 @@ export default function AccountsPage() {
         </form>
       </Modal>
     </div>
+    </PullToRefresh>
   );
 }
 
