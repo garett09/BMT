@@ -13,10 +13,13 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const res = await signIn("credentials", { redirect: false, email, password });
-    if (!res || res.error) setError("Invalid credentials");
-    else window.location.href = "/dashboard";
-    setLoading(false);
+    const res = await signIn("credentials", { redirect: false, email, password, callbackUrl: "/dashboard" });
+    if (!res || res.error) {
+      setError("Invalid credentials");
+      setLoading(false);
+      return;
+    }
+    window.location.href = res.url || "/dashboard";
   };
 
   return (
