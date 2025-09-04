@@ -159,6 +159,22 @@ export default function TransactionsPage() {
     return ordered;
   }, [txs, form.type]);
 
+  const smartCategories = useMemo(() => {
+    const now = new Date();
+    const dow = now.getDay(); // 0-6
+    const slot = (h: number) => h < 11 ? "morning" : h < 17 ? "afternoon" : h < 22 ? "evening" : "late";
+    const score = new Map<string, number>();
+    for (const t of txs) {
+      if (t.type !== form.type) continue;
+      const d = new Date(t.createdAt || `${t.date}T12:00:00`);
+      let s = 1;
+      if (d.getDay() === dow) s += 1; // same day-of-week
+      if (slot(d.getHours()) === slot(now.getHours())) s += 0.5; // same time slot
+      score.set(t.category, (score.get(t.category) || 0) + s);
+    }
+    return [...score.entries()].sort((a,b)=> b[1]-a[1]).slice(0,5).map(([c])=> c);
+  }, [txs, form.type]);
+
   const buildCategoryGroups = useMemo(() => {
     const toOptions = (names: string[]) => names
       .filter((n) => (form.type === "income" ? incomeCategories : expenseCategories).some((c) => c.name === n))
@@ -221,10 +237,19 @@ export default function TransactionsPage() {
                 placeholder="Category"
               />
               {recentCategories.length > 0 && (
-                <div className="col-span-2 flex gap-2 overflow-x-auto">
-                  {recentCategories.map((c) => (
-                    <button key={c} type="button" className="text-[10px] border rounded-full px-2.5 py-1 text-[var(--muted)] hover:text-[var(--foreground)]" onClick={() => setForm({ ...form, category: c })}>{c}</button>
-                  ))}
+                <div className="col-span-2 space-y-1">
+                  {smartCategories.length > 0 && (
+                    <div className="flex gap-2 overflow-x-auto">
+                      {smartCategories.map((c) => (
+                        <button key={`smart-${c}`} type="button" className="text-[10px] border rounded-full px-2.5 py-1 text-[var(--muted)] hover:text-[var(--foreground)]" onClick={() => setForm({ ...form, category: c })}>{c}</button>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex gap-2 overflow-x-auto">
+                    {recentCategories.map((c) => (
+                      <button key={`recent-${c}`} type="button" className="text-[10px] border rounded-full px-2.5 py-1 text-[var(--muted)] hover:text-[var(--foreground)]" onClick={() => setForm({ ...form, category: c })}>{c}</button>
+                    ))}
+                  </div>
                 </div>
               )}
               <SearchableSelect
