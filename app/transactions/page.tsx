@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { BottomNav } from "@/components/ui/BottomNav";
 import { Chip } from "@/components/ui/Chip";
@@ -35,12 +34,11 @@ export default function TransactionsPage() {
   const [form, setForm] = useState<FormState>({ type: "expense", amount: "", category: "General", subcategory: "", date: new Date().toISOString().slice(0,10), classification: "", accountId: "", recurring: false });
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState<(FormState & { id: string }) | null>(null);
-  const router = useRouter();
   const [accounts, setAccounts] = useState<{ id: string; name: string; provider?: string }[]>([]);
 
   const fetchTxs = async () => {
     setLoading(true);
-    const res = await fetch("/api/transactions", { cache: "no-store" });
+    const res = await fetch("/api/transactions", { cache: "no-store", credentials: "include" });
     if (res.ok) setTxs(await res.json());
     setLoading(false);
   };
@@ -48,7 +46,7 @@ export default function TransactionsPage() {
   useEffect(() => { fetchTxs(); loadAccounts(); }, []);
 
   const loadAccounts = async () => {
-    const res = await fetch("/api/accounts", { cache: "no-store" });
+    const res = await fetch("/api/accounts", { cache: "no-store", credentials: "include" });
     if (res.ok) setAccounts(await res.json());
   };
 
@@ -84,7 +82,7 @@ export default function TransactionsPage() {
   const saveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editForm) return;
-    const res = await fetch("/api/transactions", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...editForm, amount: Number(editForm.amount) }) });
+    const res = await fetch("/api/transactions", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...editForm, amount: Number(editForm.amount) }), credentials: "include" });
     if (res.ok) { setEditOpen(false); setEditForm(null); fetchTxs(); }
   };
 
@@ -100,7 +98,7 @@ export default function TransactionsPage() {
     <div className="min-h-dvh flex flex-col">
       <main className="flex-1 p-4 space-y-4 max-w-md mx-auto w-full">
         <h1 className="text-xl font-semibold">Transactions</h1>
-
+        <div className="text-sm font-medium text-[var(--muted)]">Quick Add</div>
         <form onSubmit={addTx} className="grid grid-cols-2 gap-2">
         <div className="col-span-2"><Segmented value={form.type} onChange={(v)=>setForm({ ...form, type: v as any })} options={["income","expense"]} /></div>
         <input className="border rounded-md px-3 py-2" type="number" placeholder="Amount" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} required />
@@ -133,7 +131,7 @@ export default function TransactionsPage() {
         />
         <label className="text-xs flex items-center gap-2 col-span-2"><input type="checkbox" checked={!!form.recurring} onChange={(e) => setForm({ ...form, recurring: e.target.checked })} /> Recurring</label>
         <input className="border rounded-md px-3 py-2 col-span-2" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} onFocus={openNativePicker} onClick={openNativePicker} />
-        <Button type="submit" fullWidth className="col-span-2">Add</Button>
+        <Button type="submit" fullWidth className="col-span-2">Quick Add</Button>
         </form>
 
         <div className="space-y-2">
@@ -156,8 +154,8 @@ export default function TransactionsPage() {
       <BottomNav items={[
         { href: "/dashboard", label: "Dashboard" },
         { href: "/transactions", label: "Transactions", active: true },
+        { href: "/history", label: "History" },
         { href: "/accounts", label: "Accounts" },
-        { href: "/notifications", label: "Inbox" },
       ]} />
       <Modal open={editOpen} onClose={() => setEditOpen(false)} title="Edit Transaction">
         {editForm && (

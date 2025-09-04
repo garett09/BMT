@@ -17,6 +17,8 @@ import { Button } from "@/components/ui/Button";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { ListSkeleton } from "@/components/ui/ListSkeleton";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
+import { ListCard } from "@/components/ui/ListCard";
+import { Chip } from "@/components/ui/Chip";
 import { QuickAddAccount } from "@/components/QuickAddAccount";
 
 export function EnhancedDashboard() {
@@ -193,6 +195,8 @@ export function EnhancedDashboard() {
           </Section>
         </div>
       )}
+
+      
 
       {tab === "Accounts" && (
         <div className="grid grid-cols-1 gap-3">

@@ -21,8 +21,8 @@ export default async function DashboardPage() {
       <BottomNav items={[
         { href: "/dashboard", label: "Dashboard", active: true },
         { href: "/transactions", label: "Transactions" },
+        { href: "/history", label: "History" },
         { href: "/accounts", label: "Accounts" },
-        { href: "/notifications", label: "Inbox" },
       ]} />
     </div>
   );
