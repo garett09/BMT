@@ -168,9 +168,15 @@ export type TransactionRecord = {
   type: "income" | "expense";
   amount: number;
   category: string;
+  subcategory?: string;
   description?: string;
   date: string; // ISO date string
   createdAt: string; // ISO timestamp
+  // enhancements
+  source?: string; // income source or merchant
+  classification?: string; // e.g., fixed, variable, recurring
+  accountId?: string; // link to account
+  recurring?: boolean;
 };
 
 // Keys helpers

@@ -20,9 +20,9 @@ export function TopBar() {
           <Link href="/settings" className="rounded-lg p-2 border border-[var(--border)] bg-[var(--card)]">
             <Settings size={16} />
           </Link>
-          <Link href="/settings" className="rounded-full p-2 border border-[var(--border)] bg-[var(--card)]">
-            <User size={16} />
-          </Link>
+          <form action="/api/auth/logout" method="post">
+            <button className="rounded-lg p-2 border border-[var(--border)] bg-[var(--card)]" title="Logout">⎋</button>
+          </form>
         </div>
       </div>
     </header>

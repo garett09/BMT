@@ -33,6 +33,8 @@ export async function POST(req: NextRequest) {
   if (!ok) return applyCors(req, withSecurityHeaders(NextResponse.json({ error: "Invalid credentials" }, { status: 401 })));
   const token = await signJwt({ sub: user.id, email: user.email, name: user.name });
   const res = NextResponse.json({ token });
+  // Set httpOnly cookie for app usage
+  res.cookies.set("auth_token", token, { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 7 });
   return applyCors(req, withSecurityHeaders(res));
 }
 

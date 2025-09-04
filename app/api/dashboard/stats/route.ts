@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getUserIdFromAuth } from "@/lib/server-auth";
 import { getRedis, keys, type TransactionRecord } from "@/lib/redis";
 export const runtime = "nodejs";
 
-export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const userId = session.user.id as string;
+export async function GET(req: Request) {
+  const urlReq = req as any;
+  const userId = await getUserIdFromAuth(urlReq);
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const redis = getRedis();
   const ids = (await redis.lrange<string>(keys.txIndexByUser(userId), 0, -1)) || [];
   const pipeline = redis.pipeline();
