@@ -24,6 +24,20 @@ export default async function Home() {
                 <Button href="/register" variant="secondary">Register</Button>
               </div>
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl border card p-4">
+                <div className="text-sm font-medium mb-1">Budget & Insights</div>
+                <div className="text-xs text-[var(--muted)]">Smart budget, charts, and predictions.</div>
+              </div>
+              <div className="rounded-xl border card p-4">
+                <div className="text-sm font-medium mb-1">Fast Transactions</div>
+                <div className="text-xs text-[var(--muted)]">Quick add with smart categories.</div>
+              </div>
+              <div className="rounded-xl border card p-4 col-span-2">
+                <div className="text-sm font-medium mb-1">Mobile-first</div>
+                <div className="text-xs text-[var(--muted)]">Optimized for phones with pull-to-refresh and toasts.</div>
+              </div>
+            </div>
           </div>
         ) : (
           <div className="mt-4 space-y-2 text-sm">
