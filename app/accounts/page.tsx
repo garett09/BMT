@@ -27,12 +27,12 @@ export default function AccountsPage() {
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     const payload = { ...form, id: form.id || String(Date.now()), balance: Number(form.balance) };
-    const res = await fetch("/api/accounts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    const res = await fetch("/api/accounts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), credentials: "include" });
     if (res.ok) { setForm({ id: "", name: "", type: "cash", balance: 0, provider: "" }); setOpen(false); load(); }
   };
 
   const delItem = async (id: string) => {
-    const res = await fetch(`/api/accounts?id=${id}`, { method: "DELETE" });
+    const res = await fetch(`/api/accounts?id=${id}`, { method: "DELETE", credentials: "include" });
     if (res.ok) load();
   };
 
