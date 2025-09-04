@@ -3,6 +3,9 @@ import Credentials from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
 import { getRedis, keys, type UserRecord } from "@/lib/redis";
 
+const isProduction = process.env.NODE_ENV === "production";
+const resolvedSecret = process.env.NEXTAUTH_SECRET || (isProduction ? undefined : "dev-secret");
+
 export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
   providers: [
@@ -28,7 +31,8 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: "/login",
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  // Require explicit secret in production; use a safe dev fallback locally to avoid configuration 500.
+  secret: resolvedSecret,
 };
 
 
