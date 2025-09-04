@@ -32,13 +32,22 @@ export async function GET(req: NextRequest) {
   const base = withSecurityHeaders(NextResponse.next());
   Object.entries(rl.headers).forEach(([k, v]) => base.headers.set(k, v));
   if (rl.limited) return NextResponse.json({ error: "Rate limit" }, { status: 429, headers: base.headers });
-  const redis = getRedis();
-  const ids = (await redis.lrange<string>(keys.txIndexByUser(userId), 0, -1)) || [];
-  const pipeline = redis.pipeline();
-  ids.forEach((id) => pipeline.get<TransactionRecord | null>(keys.txEntity(id)));
-  const txs = (await pipeline.exec()).filter(Boolean) as TransactionRecord[];
-  const res = NextResponse.json(txs);
-  return applyCors(req, withSecurityHeaders(res));
+  try {
+    const redis = getRedis();
+    const ids = (await redis.lrange(keys.txIndexByUser(userId), 0, -1)) as string[] || [];
+    const txs: TransactionRecord[] = [];
+    for (const id of ids) {
+      // eslint-disable-next-line no-await-in-loop
+      const t = await redis.get(keys.txEntity(id)) as TransactionRecord | null;
+      if (t) txs.push(t);
+    }
+    const res = NextResponse.json(txs);
+    return applyCors(req, withSecurityHeaders(res));
+  } catch (err: any) {
+    const res = NextResponse.json([], { status: 200 });
+    res.headers.set("X-Data-Error", String(err?.message || err));
+    return applyCors(req, withSecurityHeaders(res));
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -90,7 +99,7 @@ export async function DELETE(req: NextRequest) {
   if (!id) return applyCors(req, withSecurityHeaders(NextResponse.json({ error: "Missing id" }, { status: 400 })));
   const redis = getRedis();
   const entityKey = keys.txEntity(id);
-  const tx = await redis.get<TransactionRecord | null>(entityKey);
+  const tx = await redis.get(entityKey) as TransactionRecord | null;
   if (!tx || tx.userId !== userId) return applyCors(req, withSecurityHeaders(NextResponse.json({ error: "Not found" }, { status: 404 })));
   await redis.del(entityKey);
   await redis.lrem(keys.txIndexByUser(userId), 0, id);
@@ -109,7 +118,7 @@ export async function PUT(req: NextRequest) {
   const id = String(body?.id || "");
   if (!id) return applyCors(req, withSecurityHeaders(NextResponse.json({ error: "Missing id" }, { status: 400 })));
   const redis = getRedis();
-  const existing = await redis.get<TransactionRecord | null>(keys.txEntity(id));
+  const existing = await redis.get(keys.txEntity(id)) as TransactionRecord | null;
   if (!existing || existing.userId !== userId) return applyCors(req, withSecurityHeaders(NextResponse.json({ error: "Not found" }, { status: 404 })));
   const merged: TransactionRecord = {
     ...existing,
