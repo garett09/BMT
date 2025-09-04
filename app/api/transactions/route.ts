@@ -4,6 +4,7 @@ import { getRedis, keys, type TransactionRecord } from "@/lib/redis";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { randomUUID } from "crypto";
+export const runtime = "nodejs";
 
 const TxSchema = z.object({
   type: z.enum(["income", "expense"]),

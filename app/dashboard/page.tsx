@@ -1,16 +1,14 @@
 import { getServerSession } from "next-auth";
-import { auth } from "@/lib/server-auth";
+import { authOptions } from "@/lib/auth";
 
 async function getStats() {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL ?? ""}/api/dashboard/stats`, {
-    cache: "no-store",
-  });
+  const res = await fetch(`/api/dashboard/stats`, { cache: "no-store" });
   if (!res.ok) return { income: 0, expense: 0, balance: 0, count: 0 };
   return res.json();
 }
 
 export default async function DashboardPage() {
-  await getServerSession(auth); // ensure protected via middleware too
+  await getServerSession(authOptions); // ensure protected via middleware too
   const stats = await getStats();
   return (
     <div className="p-4 space-y-4">

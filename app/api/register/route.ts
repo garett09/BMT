@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getRedis, keys, type UserRecord } from "@/lib/redis";
 import { hash } from "bcryptjs";
 import { randomUUID } from "crypto";
+export const runtime = "nodejs";
 
 const RegisterSchema = z.object({
   email: z.string().email(),
