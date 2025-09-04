@@ -32,15 +32,18 @@ export default function AccountsPage() {
     e.preventDefault();
     const payload = { ...form, id: form.id || String(Date.now()), balance: Number(form.balance) };
     const res = await fetch("/api/accounts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), credentials: "include" });
-    if (res.ok) { setForm({ id: "", name: "", type: "cash", balance: 0, provider: "" }); setOpen(false); load(); }
+    if (res.ok) { setForm({ id: "", name: "", type: "cash", balance: 0, provider: "" }); setOpen(false); push({ title: "Account saved", type: "success" }); load(); } else { push({ title: "Save failed", type: "error" }); }
   };
 
   const delItem = async (id: string) => {
+    const snapshot = list;
+    setList((prev)=> prev.filter(a=> a.id !== id));
     const res = await fetch(`/api/accounts?id=${id}`, { method: "DELETE", credentials: "include" });
-    if (res.ok) load();
+    if (res.ok) { push({ title: "Deleted", type: "success" }); load(); } else { push({ title: "Delete failed", type: "error" }); setList(snapshot); }
   };
 
   return (
+    <PullToRefresh onRefresh={load}>
     <div className="min-h-dvh flex flex-col">
       <main className="flex-1 p-4 space-y-4 max-w-md mx-auto w-full">
         <HeroBanner title="Account Management" subtitle="Manage all your financial accounts in one place" />
