@@ -13,6 +13,7 @@ import { DonutChart } from "@/components/charts/DonutChart";
 import { AreaTrend } from "@/components/charts/AreaTrend";
 import { ArrowDownRight, ArrowUpRight, DollarSign, Target } from "lucide-react";
 import { QuickActionCard } from "@/components/QuickActionCard";
+import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { ListSkeleton } from "@/components/ui/ListSkeleton";
@@ -26,6 +27,10 @@ export function EnhancedDashboard() {
   const [loading, setLoading] = useState(true);
   type Account = { id: string; name: string; balance: number; provider?: string; subtype?: string };
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [budgetOpen, setBudgetOpen] = useState(false);
+  const [savingsOpen, setSavingsOpen] = useState(false);
+  const [budget, setBudget] = useState<string>("");
+  const [goal, setGoal] = useState({ id: "", name: "", targetAmount: "", currentAmount: "0", dueDate: "" });
 
   const fetchAll = async () => {
     setLoading(true);
@@ -140,8 +145,8 @@ export function EnhancedDashboard() {
 
         <div className="grid grid-cols-3 gap-3">
           <QuickActionCard title="Spending Alert" description="You're on track this month." action={<Button variant="secondary" href="/notifications">View Details →</Button>} />
-          <QuickActionCard title="Savings Goal" description="Set or adjust your monthly target." action={<Button variant="secondary" href="/savings">Set Goals →</Button>} />
-          <QuickActionCard title="Budget Timeline" description="Adjust monthly budget and limits." action={<Button variant="secondary" href="/settings">Adjust Budget →</Button>} />
+          <QuickActionCard title="Savings Goal" description="Create or update a savings goal." action={<Button variant="secondary" onClick={()=> setSavingsOpen(true)}>Set Goals →</Button>} />
+          <QuickActionCard title="Budget Timeline" description="Adjust monthly budget and limits." action={<Button variant="secondary" onClick={()=> setBudgetOpen(true)}>Adjust Budget →</Button>} />
         </div>
       </div>
       )}
@@ -219,6 +224,26 @@ export function EnhancedDashboard() {
         </div>
       )}
 
+      <Modal open={budgetOpen} onClose={()=> setBudgetOpen(false)} title="Adjust Monthly Budget">
+        <form onSubmit={async (e)=>{ e.preventDefault(); setBudgetOpen(false); }} className="grid grid-cols-2 gap-2">
+          <div className="col-span-2 text-xs text-[var(--muted)]">Set your target spend for {monthISO}.</div>
+          <div className="col-span-2 relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]">₱</span>
+            <input className="border rounded-md pl-7 pr-3 py-2 w-full" inputMode="decimal" step="0.01" type="number" placeholder="0.00" value={budget} onChange={(e)=> setBudget(e.target.value)} />
+          </div>
+          <Button type="submit" className="col-span-2" fullWidth>Save</Button>
+        </form>
+      </Modal>
+
+      <Modal open={savingsOpen} onClose={()=> setSavingsOpen(false)} title="Savings Goal">
+        <form onSubmit={async (e)=>{ e.preventDefault(); const payload = { id: goal.id || String(Date.now()), name: goal.name || "Goal", targetAmount: Number(goal.targetAmount||0), currentAmount: Number(goal.currentAmount||0), dueDate: goal.dueDate || undefined }; const res = await fetch("/api/savings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), credentials: "include" }); if (res.ok) { setSavingsOpen(false); setGoal({ id: "", name: "", targetAmount: "", currentAmount: "0", dueDate: "" }); } }} className="grid grid-cols-2 gap-2">
+          <input className="border rounded-md px-3 py-2 col-span-2" placeholder="Goal name (e.g., Emergency Fund)" value={goal.name} onChange={(e)=> setGoal({ ...goal, name: e.target.value })} />
+          <input className="border rounded-md px-3 py-2" type="number" placeholder="Target amount" value={goal.targetAmount} onChange={(e)=> setGoal({ ...goal, targetAmount: e.target.value })} />
+          <input className="border rounded-md px-3 py-2" type="number" placeholder="Current amount" value={goal.currentAmount} onChange={(e)=> setGoal({ ...goal, currentAmount: e.target.value })} />
+          <input className="border rounded-md px-3 py-2 col-span-2" type="date" value={goal.dueDate} onChange={(e)=> setGoal({ ...goal, dueDate: e.target.value })} />
+          <Button type="submit" className="col-span-2" fullWidth>Save Goal</Button>
+        </form>
+      </Modal>
       {loading && <ListSkeleton count={3} />}
     </div>
     </PullToRefresh>
