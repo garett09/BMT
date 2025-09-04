@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { signIn } from "next-auth/react";
 import Link from "next/link";
 
 export default function LoginPage() {
@@ -12,12 +13,9 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const res = await fetch("/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password }) });
-    if (res.ok) {
-      window.location.href = "/dashboard";
-    } else {
-      setError("Invalid credentials");
-    }
+    const res = await signIn("credentials", { redirect: false, email, password });
+    if (!res || res.error) setError("Invalid credentials");
+    else window.location.href = "/dashboard";
     setLoading(false);
   };
 

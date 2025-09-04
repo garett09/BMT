@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getToken } from "next-auth/jwt";
 
 export async function middleware(req: NextRequest) {
   const url = req.nextUrl;
@@ -9,7 +10,7 @@ export async function middleware(req: NextRequest) {
   // Skip auth for auth pages
   if (path.startsWith("/login") || path.startsWith("/register")) return NextResponse.next();
 
-  const token = req.cookies.get("auth_token")?.value;
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
   const isProtected = [
     "/dashboard",
     "/transactions",
