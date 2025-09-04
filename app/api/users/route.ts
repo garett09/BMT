@@ -14,14 +14,15 @@ export async function OPTIONS(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const userId = (session?.user as any)?.id as string | undefined;
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const rl = await rateLimit(req, "users:get", 60, 60);
   const base = withSecurityHeaders(NextResponse.next());
   Object.entries(rl.headers).forEach(([k, v]) => base.headers.set(k, v));
   if (rl.limited) return NextResponse.json({ error: "Rate limit" }, { status: 429, headers: base.headers });
 
   const redis = getRedis();
-  const user = await redis.get<UserRecord | null>(keys.userId(session.user.id as string));
+  const user = await redis.get<UserRecord | null>(keys.userId(userId));
   if (!user) return applyCors(req, withSecurityHeaders(NextResponse.json({ error: "Not found" }, { status: 404 })));
   const { passwordHash, ...publicUser } = user as any;
   const res = NextResponse.json(publicUser);
@@ -30,14 +31,14 @@ export async function GET(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const userId = (session?.user as any)?.id as string | undefined;
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const rl = await rateLimit(req, "users:write", 20, 60);
   const base = withSecurityHeaders(NextResponse.next());
   Object.entries(rl.headers).forEach(([k, v]) => base.headers.set(k, v));
   if (rl.limited) return NextResponse.json({ error: "Rate limit" }, { status: 429, headers: base.headers });
 
   const redis = getRedis();
-  const userId = session.user.id as string;
   const existing = await redis.get<UserRecord | null>(keys.userId(userId));
   if (!existing) return applyCors(req, withSecurityHeaders(NextResponse.json({ error: "Not found" }, { status: 404 })));
 
@@ -52,14 +53,14 @@ export async function PUT(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const userId = (session?.user as any)?.id as string | undefined;
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const rl = await rateLimit(req, "users:write", 10, 60);
   const base = withSecurityHeaders(NextResponse.next());
   Object.entries(rl.headers).forEach(([k, v]) => base.headers.set(k, v));
   if (rl.limited) return NextResponse.json({ error: "Rate limit" }, { status: 429, headers: base.headers });
 
   const redis = getRedis();
-  const userId = session.user.id as string;
   const existing = await redis.get<UserRecord | null>(keys.userId(userId));
   if (!existing) return applyCors(req, withSecurityHeaders(NextResponse.json({ error: "Not found" }, { status: 404 })));
 

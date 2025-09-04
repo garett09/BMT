@@ -10,7 +10,8 @@ export const runtime = "nodejs";
 // Enable/disable expense sharing by storing partner email mapping
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const userId = (session?.user as any)?.id as string | undefined;
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const rl = await rateLimit(req, "shared:write", 10, 60);
   const base = withSecurityHeaders(NextResponse.next());
   Object.entries(rl.headers).forEach(([k, v]) => base.headers.set(k, v));

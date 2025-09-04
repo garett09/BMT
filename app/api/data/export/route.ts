@@ -10,9 +10,8 @@ const dataTypes = ["accounts", "savings"] as const;
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const userId = session.user.id as string;
+  const userId = (session?.user as any)?.id as string | undefined;
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const payload: Record<string, unknown> = {};
   for (const type of dataTypes) {
     const dp = new DataPersistence(userId, type);

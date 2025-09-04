@@ -9,8 +9,8 @@ export const runtime = "nodejs";
 // Naive last-write-wins incremental sync: client sends { type, value, updatedAt }
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const userId = session.user.id as string;
+  const userId = (session?.user as any)?.id as string | undefined;
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { type, value, updatedAt } = await req.json();
   if (!type) return NextResponse.json({ error: "Missing type" }, { status: 400 });
