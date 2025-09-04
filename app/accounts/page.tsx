@@ -58,9 +58,18 @@ export default function AccountsPage() {
           ) : list.length === 0 ? (
             <p className="text-sm text-muted-foreground">No accounts yet.</p>
           ) : (
-            list.map((a) => (
-              <ListCard key={a.id} left={`${a.name} • ${a.subtype || a.type}${a.provider ? " • " + a.provider : ""}`} sub={`₱${a.balance.toLocaleString()}`} right={<div className="flex gap-2"><Button variant="secondary" onClick={() => { setForm(a); setOpen(true); }}>Edit</Button><Button variant="danger" onClick={() => delItem(a.id)}>Delete</Button></div>} />
-            ))
+            list.map((a) => {
+              const low = Number(a.balance) <= 500;
+              return (
+                <ListCard
+                  key={a.id}
+                  className={low ? "border-l-4 border-l-[var(--negative)]" : undefined}
+                  left={<div className="flex items-center gap-2">{a.name} • {a.subtype || a.type}{a.provider ? ` • ${a.provider}` : ""}{low && <span className="text-[10px] text-[var(--negative)]">Low</span>}</div>}
+                  sub={`₱${a.balance.toLocaleString()}`}
+                  right={<div className="flex gap-2">{low && <Button variant="secondary" onClick={() => { setForm({ ...a }); setOpen(true); }}>Fund</Button>}<Button variant="secondary" onClick={() => { setForm(a); setOpen(true); }}>Edit</Button><Button variant="danger" onClick={() => delItem(a.id)}>Delete</Button></div>}
+                />
+              );
+            })
           )}
         </div>
       </main>
