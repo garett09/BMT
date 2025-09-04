@@ -253,14 +253,16 @@ export default function TransactionsPage() {
           txs.map((t) => (
             <ListCard
               key={t.id}
+              className={t.type === "income" ? "border-l-4 border-l-[var(--positive)]" : "border-l-4 border-l-[var(--negative)]"}
               left={<div className="flex items-center gap-2"><Chip tone={t.type === "income" ? "pos" : "neg"}>{t.type}</Chip><span>{t.category}</span>{t.accountId && <span className="text-[10px] text-[var(--muted)]">• {accounts.find(a => a.id === t.accountId)?.name || t.accountId}</span>}</div>}
               sub={<InlineBar value={Math.min(100, t.amount)} max={100} color={t.type === "income" ? "#22c55e" : "#ef4444"} />}
-              right={<div className="flex items-center gap-2"><div className={t.type === "income" ? "text-[var(--positive)]" : "text-[var(--negative)]"}>₱{t.amount.toLocaleString()}</div><Button variant="secondary" onClick={() => openEdit(t)}>Edit</Button></div>}
+              right={<div className="flex items-center gap-2"><div className={t.type === "income" ? "text-[var(--positive)]" : "text-[var(--negative)]"}>₱{t.amount.toLocaleString()}</div><Button variant="secondary" onClick={() => openEdit(t)}>Edit</Button><Button variant="danger" onClick={() => { if (t.id !== "optimistic" && confirm("Delete this transaction?")) delTx(t.id); }}>Delete</Button></div>}
             />
           ))
         )}
         </div>
       </main>
+      
       <BottomNav items={[
         { href: "/dashboard", label: "Dashboard" },
         { href: "/transactions", label: "Transactions", active: true },
@@ -280,7 +282,10 @@ export default function TransactionsPage() {
             <input className="border rounded-md px-3 py-2 col-span-2" value={editForm.classification} onChange={(e) => setEditForm({ ...editForm, classification: e.target.value })} placeholder="Classification" />
             <SearchableSelect className="col-span-2" options={[{ value: "", label: "No Account" }, ...accounts.map((a) => ({ value: a.id, label: `${a.name}${a.provider ? " • " + a.provider : ""}` }))]} value={editForm.accountId} onChange={(v) => setEditForm({ ...editForm, accountId: v })} />
             <input className="border rounded-md px-3 py-2 col-span-2" type="date" value={editForm.date} onChange={(e) => setEditForm({ ...editForm, date: e.target.value })} onFocus={openNativePicker} onClick={openNativePicker} />
-            <Button type="submit" className="col-span-2" fullWidth>Save</Button>
+            <div className="col-span-2 flex gap-2">
+              <Button type="submit" className="flex-1" fullWidth>Save</Button>
+              <Button type="button" variant="danger" className="flex-1" fullWidth onClick={() => { if (confirm("Delete this transaction?")) { setEditOpen(false); delTx(editForm.id); } }}>Delete</Button>
+            </div>
           </form>
         )}
       </Modal>
