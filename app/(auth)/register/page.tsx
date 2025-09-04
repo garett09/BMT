@@ -1,6 +1,9 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import { z } from "zod";
+
+const emailSchema = z.string().email();
 
 export default function RegisterPage() {
   const [email, setEmail] = useState("");
@@ -11,8 +14,13 @@ export default function RegisterPage() {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError(null);
+    const isValidEmail = emailSchema.safeParse(email).success;
+    if (!isValidEmail) {
+      setError("Please enter a valid email address");
+      return;
+    }
+    setLoading(true);
     const res = await fetch("/api/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -46,6 +54,13 @@ export default function RegisterPage() {
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            onBlur={() => {
+              if (!emailSchema.safeParse(email).success) {
+                setError("Please enter a valid email address");
+              } else if (error) {
+                setError(null);
+              }
+            }}
             required
           />
           <input
