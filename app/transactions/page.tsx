@@ -29,6 +29,7 @@ type Tx = {
 type FormState = { type: "income" | "expense"; amount: string; category: string; subcategory?: string; date: string; classification: string; accountId: string; recurring?: boolean };
 
 export default function TransactionsPage() {
+  const { push } = useToast();
   const [txs, setTxs] = useState<Tx[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState<FormState>({ type: "expense", amount: "", category: "General", subcategory: "", date: new Date().toISOString().slice(0,10), classification: "", accountId: "", recurring: false });
@@ -54,16 +55,25 @@ export default function TransactionsPage() {
   const addTx = async (e: React.FormEvent) => {
     e.preventDefault();
     const payload = { ...form, amount: Number(form.amount) };
+    const optimistic = { id: "optimistic" as any, type: payload.type as any, amount: Number(payload.amount), category: payload.category, date: payload.date } as any;
+    setTxs((prev)=> [optimistic, ...prev]);
     const res = await fetch("/api/transactions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), credentials: "include" });
     if (res.ok) {
       setForm({ type: "expense", amount: "", category: "General", subcategory: "", date: new Date().toISOString().slice(0,10), classification: "", accountId: "", recurring: false });
+      push({ title: "Transaction added", type: "success" });
       fetchTxs();
+    }
+    else {
+      push({ title: "Failed to add", type: "error" });
+      setTxs((prev)=> prev.filter(t=> t.id !== "optimistic"));
     }
   };
 
   const delTx = async (id: string) => {
+    const snapshot = txs;
+    setTxs((prev)=> prev.filter(t=> t.id !== id));
     const res = await fetch(`/api/transactions?id=${id}`, { method: "DELETE", credentials: "include" });
-    if (res.ok) fetchTxs();
+    if (res.ok) { push({ title: "Deleted", type: "success" }); fetchTxs(); } else { push({ title: "Delete failed", type: "error" }); setTxs(snapshot); }
   };
 
   const openEdit = (t: Tx) => {
