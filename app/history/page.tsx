@@ -75,7 +75,7 @@ export default function HistoryPage() {
       <main className="flex-1 p-4 space-y-4 max-w-md mx-auto w-full">
         <h1 className="text-xl font-semibold">History</h1>
 
-        <div className="col-span-2"><Segmented value={filter} onChange={(v)=>{ setFilter(v as any); setVisible(30); }} options={["all","income","expense"]} /></div>
+        <div className="col-span-2"><Segmented value={filter} onChange={(v)=>{ setFilter(v as "all"|"income"|"expense"); setVisible(30); }} options={["all","income","expense"]} /></div>
 
         <div className="grid grid-cols-2 gap-2">
           <input className="border rounded-md px-3 py-2" type="month" value={month} onChange={(e)=>{ setMonth(e.target.value); setVisible(30); }} />

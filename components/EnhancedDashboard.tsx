@@ -419,7 +419,7 @@ export function EnhancedDashboard() {
       {tab === "Historical" && (
         <div className="grid grid-cols-1 gap-3">
           <Section title="Historical Summary">
-            <div className="mb-2"><Segmented value={histRange} onChange={(v)=> setHistRange(v as any)} options={["All","Year","Month","Week"]} /></div>
+            <div className="mb-2"><Segmented value={histRange} onChange={(v: string)=> setHistRange(v as "All"|"Year"|"Month"|"Week")} options={["All","Year","Month","Week"]} /></div>
             <div className="text-xs space-y-1">
               <div className="grid grid-cols-4 gap-2 text-[var(--muted)]"><div>Period</div><div className="text-right">Income</div><div className="text-right">Expense</div><div className="text-right">Balance</div></div>
               {historicalRows.map((r, idx, arr) => {

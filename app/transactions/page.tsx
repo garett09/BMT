@@ -58,7 +58,7 @@ export default function TransactionsPage() {
         const last = JSON.parse(raw) as Partial<FormState>;
         setForm((f) => ({
           ...f,
-          type: (last.type as any) || f.type,
+          type: (last.type as "income"|"expense") || f.type,
           category: last.category || f.category,
           subcategory: last.subcategory || "",
           accountId: last.accountId || "",
@@ -143,7 +143,7 @@ export default function TransactionsPage() {
     const el = e.currentTarget as HTMLInputElement;
     // Some browsers require explicit call to open the date picker
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (el as any).showPicker?.();
+    (el as unknown as { showPicker?: () => void }).showPicker?.();
   };
 
   const isValid = useMemo(() => Number(form.amount) > 0 && !!form.category, [form.amount, form.category]);
