@@ -13,7 +13,7 @@ export type JwtPayload = {
 };
 
 export async function signJwt(payload: JwtPayload, expiresIn = "7d") {
-  return new jose.SignJWT(payload as any)
+  return new jose.SignJWT(payload as unknown as jose.JWTPayload)
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(expiresIn)
