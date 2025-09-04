@@ -21,6 +21,7 @@ type Tx = {
   amount: number;
   category: string;
   date: string;
+  createdAt?: string;
   classification?: string;
   accountId?: string;
   subcategory?: string;
@@ -39,6 +40,7 @@ export default function TransactionsPage() {
   const [accounts, setAccounts] = useState<{ id: string; name: string; provider?: string }[]>([]);
   const amountRef = useRef<HTMLInputElement>(null);
   const [submitting, setSubmitting] = useState(false);
+  const longPressRef = useRef<number | null>(null);
 
   const fetchTxs = async () => {
     setLoading(true);
@@ -114,6 +116,15 @@ export default function TransactionsPage() {
     setTxs((prev)=> prev.filter(t=> t.id !== id));
     const res = await fetch(`/api/transactions?id=${id}`, { method: "DELETE", credentials: "include" });
     if (res.ok) { push({ title: "Deleted", type: "success" }); fetchTxs(); } else { push({ title: "Delete failed", type: "error" }); setTxs(snapshot); }
+  };
+
+  const duplicateTx = async (t: Tx) => {
+    const payload = duplicatePayloadFrom(t);
+    const optimistic = { id: `dup-${Date.now()}` as any, type: payload.type as any, amount: Number(payload.amount), category: payload.category, date: payload.date } as any;
+    setTxs((prev)=> [optimistic, ...prev]);
+    const res = await fetch("/api/transactions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), credentials: "include" });
+    if (res.ok) { push({ title: "Duplicated", type: "success" }); fetchTxs(); }
+    else { push({ title: "Duplicate failed", type: "error" }); setTxs((prev)=> prev.filter(x=> x.id !== optimistic.id)); }
   };
 
   const openEdit = (t: Tx) => {
@@ -251,13 +262,20 @@ export default function TransactionsPage() {
           <div className="rounded-md border card p-4 text-center text-sm text-[var(--muted)]">No transactions yet. Add your first one above.</div>
         ) : (
           txs.map((t) => (
-            <ListCard
+            <div
               key={t.id}
-              className={t.type === "income" ? "border-l-4 border-l-[var(--positive)]" : "border-l-4 border-l-[var(--negative)]"}
-              left={<div className="flex items-center gap-2"><Chip tone={t.type === "income" ? "pos" : "neg"}>{t.type}</Chip><span>{t.category}</span>{t.accountId && <span className="text-[10px] text-[var(--muted)]">• {accounts.find(a => a.id === t.accountId)?.name || t.accountId}</span>}</div>}
-              sub={<InlineBar value={Math.min(100, t.amount)} max={100} color={t.type === "income" ? "#22c55e" : "#ef4444"} />}
-              right={<div className="flex items-center gap-2"><div className={t.type === "income" ? "text-[var(--positive)]" : "text-[var(--negative)]"}>₱{t.amount.toLocaleString()}</div><Button variant="secondary" onClick={() => openEdit(t)}>Edit</Button><Button variant="danger" onClick={() => { if (t.id !== "optimistic" && confirm("Delete this transaction?")) delTx(t.id); }}>Delete</Button></div>}
-            />
+              onPointerDown={() => { if (longPressRef.current) window.clearTimeout(longPressRef.current); longPressRef.current = window.setTimeout(() => duplicateTx(t), 600) as unknown as number; }}
+              onPointerUp={() => { if (longPressRef.current) window.clearTimeout(longPressRef.current); }}
+              onPointerLeave={() => { if (longPressRef.current) window.clearTimeout(longPressRef.current); }}
+              onContextMenu={(e) => { e.preventDefault(); duplicateTx(t); }}
+            >
+              <ListCard
+                className={t.type === "income" ? "border-l-4 border-l-[var(--positive)]" : "border-l-4 border-l-[var(--negative)]"}
+                left={<div className="flex items-center gap-2"><Chip tone={t.type === "income" ? "pos" : "neg"}>{t.type}</Chip><span>{t.category}</span>{t.accountId && <span className="text-[10px] text-[var(--muted)]">• {accounts.find(a => a.id === t.accountId)?.name || t.accountId}</span>}</div>}
+                sub={<InlineBar value={Math.min(100, t.amount)} max={100} color={t.type === "income" ? "#22c55e" : "#ef4444"} />}
+                right={<div className="flex items-center gap-2"><div className={t.type === "income" ? "text-[var(--positive)]" : "text-[var(--negative)]"}>₱{t.amount.toLocaleString()}</div><Button variant="secondary" onClick={() => openEdit(t)}>Edit</Button><Button variant="danger" onClick={() => { if (t.id !== "optimistic" && confirm("Delete this transaction?")) delTx(t.id); }}>Delete</Button></div>}
+              />
+            </div>
           ))
         )}
         </div>
@@ -292,6 +310,20 @@ export default function TransactionsPage() {
     </div>
     </PullToRefresh>
   );
+}
+
+// helpers
+function duplicatePayloadFrom(t: Tx) {
+  return {
+    type: t.type,
+    amount: t.amount,
+    category: t.category,
+    subcategory: t.subcategory,
+    date: new Date().toISOString().slice(0,10),
+    classification: t.classification,
+    accountId: t.accountId,
+    recurring: t.recurring,
+  } as const;
 }
 
 
