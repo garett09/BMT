@@ -124,9 +124,9 @@ export default function TransactionsPage() {
 
         <div className="space-y-2">
         {loading ? (
-          <p className="text-sm text-muted-foreground">Loading...</p>
+          <div className="text-sm text-[var(--muted)]">Loading…</div>
         ) : txs.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No transactions yet.</p>
+          <div className="rounded-md border card p-4 text-center text-sm text-[var(--muted)]">No transactions yet. Add your first one above.</div>
         ) : (
           txs.map((t) => (
             <ListCard
