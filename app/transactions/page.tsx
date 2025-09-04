@@ -1,6 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/Button";
+import { BottomNav } from "@/components/ui/BottomNav";
+import { Chip } from "@/components/ui/Chip";
+import { ListCard } from "@/components/ui/ListCard";
+import { InlineBar } from "@/components/ui/InlineBar";
 
 type Tx = {
   id: string;
@@ -42,9 +47,10 @@ export default function TransactionsPage() {
   };
 
   return (
-    <div className="p-4 space-y-4">
-      <h1 className="text-xl font-semibold">Transactions</h1>
-      <form onSubmit={addTx} className="grid grid-cols-2 gap-2">
+    <div className="min-h-dvh flex flex-col">
+      <main className="flex-1 p-4 space-y-4 max-w-md mx-auto w-full">
+        <h1 className="text-xl font-semibold">Transactions</h1>
+        <form onSubmit={addTx} className="grid grid-cols-2 gap-2">
         <select className="border rounded-md px-3 py-2" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as any })}>
           <option value="income">Income</option>
           <option value="expense">Expense</option>
@@ -53,29 +59,31 @@ export default function TransactionsPage() {
         <input className="border rounded-md px-3 py-2 col-span-2" placeholder="Category" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
         <input className="border rounded-md px-3 py-2 col-span-2" placeholder="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
         <input className="border rounded-md px-3 py-2 col-span-2" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
-        <button className="rounded-md bg-black text-white py-2 col-span-2">Add</button>
-      </form>
+        <Button type="submit" fullWidth className="col-span-2">Add</Button>
+        </form>
 
-      <div className="space-y-2">
+        <div className="space-y-2">
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading...</p>
         ) : txs.length === 0 ? (
           <p className="text-sm text-muted-foreground">No transactions yet.</p>
         ) : (
           txs.map((t) => (
-            <div key={t.id} className="flex items-center justify-between border rounded-md p-3">
-              <div>
-                <div className="text-sm font-medium">{t.category} • {t.type}</div>
-                <div className="text-xs text-muted-foreground">{t.date}</div>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className={`text-sm font-semibold ${t.type === "income" ? "text-green-600" : "text-red-600"}`}>₱{t.amount.toLocaleString()}</div>
-                <button onClick={() => delTx(t.id)} className="text-xs underline">Delete</button>
-              </div>
-            </div>
+            <ListCard
+              key={t.id}
+              left={<div className="flex items-center gap-2"><Chip tone={t.type === "income" ? "pos" : "neg"}>{t.type}</Chip><span>{t.category}</span></div>}
+              sub={<InlineBar value={Math.min(100, t.amount)} max={100} color={t.type === "income" ? "#22c55e" : "#ef4444"} />}
+              right={<div className={t.type === "income" ? "text-[var(--positive)]" : "text-[var(--negative)]"}>₱{t.amount.toLocaleString()}</div>}
+            />
           ))
         )}
-      </div>
+        </div>
+      </main>
+      <BottomNav items={[
+        { href: "/dashboard", label: "Dashboard" },
+        { href: "/transactions", label: "Transactions", active: true },
+        { href: "/notifications", label: "Inbox" },
+      ]} />
     </div>
   );
 }

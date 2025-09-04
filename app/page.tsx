@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Button } from "@/components/ui/Button";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
@@ -12,16 +13,16 @@ export default async function Home() {
           <div className="mt-4 space-y-2">
             <p className="text-sm">Track your income and expenses on the go.</p>
             <div className="flex gap-2">
-              <Link className="px-4 py-2 rounded-md bg-black text-white" href="/login">Login</Link>
-              <Link className="px-4 py-2 rounded-md border" href="/register">Register</Link>
+              <Button href="/login">Login</Button>
+              <Button href="/register" variant="secondary">Register</Button>
             </div>
           </div>
         ) : (
           <div className="mt-4 space-y-2 text-sm">
             <p>Welcome back, {session.user?.name || session.user?.email}.</p>
             <div className="flex gap-2">
-              <Link className="px-4 py-2 rounded-md bg-black text-white" href="/dashboard">Dashboard</Link>
-              <Link className="px-4 py-2 rounded-md border" href="/transactions">Transactions</Link>
+              <Button href="/dashboard">Dashboard</Button>
+              <Button href="/transactions" variant="secondary">Transactions</Button>
             </div>
           </div>
         )}

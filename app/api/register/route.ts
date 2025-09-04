@@ -3,6 +3,8 @@ import { z } from "zod";
 import { getRedis, keys, type UserRecord } from "@/lib/redis";
 import { hash } from "bcryptjs";
 import { randomUUID } from "crypto";
+import { withSecurityHeaders, applyCors } from "@/lib/security";
+import { rateLimit } from "@/lib/rateLimit";
 export const runtime = "nodejs";
 
 const RegisterSchema = z.object({
@@ -11,19 +13,29 @@ const RegisterSchema = z.object({
   name: z.string().min(1).max(60).optional(),
 });
 
+export async function OPTIONS(req: NextRequest) {
+  const res = withSecurityHeaders(NextResponse.json({ ok: true }));
+  return applyCors(req, res);
+}
+
 export async function POST(req: NextRequest) {
   try {
+    const rl = await rateLimit(req, "auth:register", 10, 60);
+    const base = withSecurityHeaders(NextResponse.next());
+    Object.entries(rl.headers).forEach(([k, v]) => base.headers.set(k, v));
+    if (rl.limited) return NextResponse.json({ error: "Rate limit" }, { status: 429, headers: base.headers });
+
     const data = await req.json();
     const parsed = RegisterSchema.safeParse(data);
     if (!parsed.success) {
-      return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+      return applyCors(req, withSecurityHeaders(NextResponse.json({ error: "Invalid payload" }, { status: 400 })));
     }
 
     const { email, password, name } = parsed.data;
     const redis = getRedis();
     const existingId = await redis.get<string | null>(keys.userByEmail(email));
     if (existingId) {
-      return NextResponse.json({ error: "Email already registered" }, { status: 409 });
+      return applyCors(req, withSecurityHeaders(NextResponse.json({ error: "Email already registered" }, { status: 409 })));
     }
 
     const id = randomUUID();
@@ -34,9 +46,9 @@ export async function POST(req: NextRequest) {
     await redis.set(keys.userId(id), user);
     await redis.set(keys.userByEmail(email), id);
 
-    return NextResponse.json({ id, email, name });
+    return applyCors(req, withSecurityHeaders(NextResponse.json({ id, email, name })));
   } catch (err) {
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    return applyCors(req, withSecurityHeaders(NextResponse.json({ error: "Server error" }, { status: 500 })));
   }
 }
 

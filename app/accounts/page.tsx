@@ -1,0 +1,74 @@
+"use client";
+import { useEffect, useState } from "react";
+import { HeroBanner } from "@/components/ui/HeroBanner";
+import { ListCard } from "@/components/ui/ListCard";
+import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
+import { BottomNav } from "@/components/ui/BottomNav";
+
+type Account = { id: string; name: string; type: "cash" | "bank" | "credit" | "other"; balance: number };
+
+export default function AccountsPage() {
+  const [list, setList] = useState<Account[]>([]);
+  const [form, setForm] = useState<Account>({ id: "", name: "", type: "cash", balance: 0 });
+  const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    const res = await fetch("/api/accounts", { cache: "no-store" });
+    if (res.ok) setList(await res.json());
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const payload = { ...form, id: form.id || String(Date.now()), balance: Number(form.balance) };
+    const res = await fetch("/api/accounts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    if (res.ok) { setForm({ id: "", name: "", type: "cash", balance: 0 }); setOpen(false); load(); }
+  };
+
+  const delItem = async (id: string) => {
+    const res = await fetch(`/api/accounts?id=${id}`, { method: "DELETE" });
+    if (res.ok) load();
+  };
+
+  return (
+    <div className="min-h-dvh flex flex-col">
+      <main className="flex-1 p-4 space-y-4 max-w-md mx-auto w-full">
+        <HeroBanner title="Account Management" subtitle="Manage all your financial accounts in one place" />
+        <div className="flex justify-end"><Button onClick={() => setOpen(true)}>Add Account</Button></div>
+
+        <div className="space-y-2">
+          {loading ? (
+            <p className="text-sm text-muted-foreground">Loading…</p>
+          ) : list.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No accounts yet.</p>
+          ) : (
+            list.map((a) => (
+              <ListCard key={a.id} left={`${a.name} • ${a.type}`} sub={`₱${a.balance.toLocaleString()}`} right={<Button variant="secondary" onClick={() => delItem(a.id)}>Delete</Button>} />
+            ))
+          )}
+        </div>
+      </main>
+      <BottomNav items={[{ href: "/dashboard", label: "Dashboard" }, { href: "/transactions", label: "Transactions" }, { href: "/accounts", label: "Accounts", active: true }]} />
+
+      <Modal open={open} onClose={() => setOpen(false)} title="Add New Account">
+        <form onSubmit={save} className="grid grid-cols-2 gap-2">
+          <input className="border rounded-md px-3 py-2 col-span-2" placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <select className="border rounded-md px-3 py-2" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as Account["type"] })}>
+            <option value="cash">Cash</option>
+            <option value="bank">Bank</option>
+            <option value="credit">Credit</option>
+            <option value="other">Other</option>
+          </select>
+          <input className="border rounded-md px-3 py-2" type="number" placeholder="Balance" value={form.balance} onChange={(e) => setForm({ ...form, balance: Number(e.target.value) })} />
+          <Button type="submit" className="col-span-2" fullWidth>Save</Button>
+        </form>
+      </Modal>
+    </div>
+  );
+}
+
+

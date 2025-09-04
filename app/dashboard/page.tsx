@@ -1,32 +1,28 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-
-async function getStats() {
-  const res = await fetch(`/api/dashboard/stats`, { cache: "no-store" });
-  if (!res.ok) return { income: 0, expense: 0, balance: 0, count: 0 };
-  return res.json();
-}
+import Link from "next/link";
+import { EnhancedDashboard } from "@/components/EnhancedDashboard";
+import { BottomNav } from "@/components/ui/BottomNav";
+import { TopBar } from "@/components/ui/TopBar";
 
 export default async function DashboardPage() {
   await getServerSession(authOptions); // ensure protected via middleware too
-  const stats = await getStats();
   return (
-    <div className="p-4 space-y-4">
-      <h1 className="text-xl font-semibold">Dashboard</h1>
-      <div className="grid grid-cols-3 gap-2 text-center">
-        <div className="rounded-md border p-3">
-          <div className="text-xs text-muted-foreground">Income</div>
-          <div className="text-lg font-semibold">₱{stats.income.toLocaleString()}</div>
+    <div className="min-h-dvh flex flex-col">
+      <TopBar />
+      <main className="flex-1 p-4 space-y-4 max-w-md mx-auto w-full">
+        <h1 className="text-xl font-semibold">Dashboard</h1>
+        <EnhancedDashboard />
+        <div className="grid grid-cols-2 gap-2">
+          <Link href="/transactions" className="rounded-md border p-3 text-center text-sm">Manage Transactions</Link>
+          <Link href="/settings" className="rounded-md border p-3 text-center text-sm">Settings</Link>
         </div>
-        <div className="rounded-md border p-3">
-          <div className="text-xs text-muted-foreground">Expense</div>
-          <div className="text-lg font-semibold">₱{stats.expense.toLocaleString()}</div>
-        </div>
-        <div className="rounded-md border p-3">
-          <div className="text-xs text-muted-foreground">Balance</div>
-          <div className="text-lg font-semibold">₱{stats.balance.toLocaleString()}</div>
-        </div>
-      </div>
+      </main>
+      <BottomNav items={[
+        { href: "/dashboard", label: "Dashboard", active: true },
+        { href: "/transactions", label: "Transactions" },
+        { href: "/notifications", label: "Inbox" },
+      ]} />
     </div>
   );
 }
