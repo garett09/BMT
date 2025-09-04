@@ -11,7 +11,6 @@ export async function middleware(req: NextRequest) {
 
   const token = req.cookies.get("auth_token")?.value;
   const isProtected = [
-    "/",
     "/dashboard",
     "/transactions",
     "/accounts",
