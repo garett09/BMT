@@ -111,18 +111,31 @@ class InMemoryRedis {
     this.expirations.set(key, this.now() + seconds * 1000);
     return 1;
   }
-  async zadd(key: string, score: number, value: string) {
+  async zadd(key: string, ...args: any[]) {
+    // Support both (score, member) and ({ score, member }) signatures
+    let entries: Array<{ score: number; member: string }> = [];
+    if (args.length === 1 && typeof args[0] === "object" && args[0] !== null) {
+      const { score, member } = args[0] as { score: number; member: string };
+      entries = [{ score, member }];
+    } else if (args.length >= 2) {
+      entries = [{ score: Number(args[0]), member: String(args[1]) }];
+    }
     const arr = this.zsets.get(key) || [];
-    arr.push({ score, value });
+    for (const e of entries) {
+      arr.push({ score: e.score, value: e.member });
+    }
     arr.sort((a, b) => a.score - b.score);
     this.zsets.set(key, arr);
-    return 1;
+    return entries.length;
   }
   async zrange(key: string, min: number, max: number) {
     const arr = this.zsets.get(key) || [];
     return arr
       .filter((e) => e.score >= min && e.score <= max)
       .map((e) => e.value);
+  }
+  async zrangebyscore(key: string, min: number, max: number) {
+    return this.zrange(key, min, max);
   }
   async zremrangebyscore(key: string, min: number, max: number) {
     const arr = this.zsets.get(key) || [];
