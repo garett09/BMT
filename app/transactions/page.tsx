@@ -9,6 +9,7 @@ import { InlineBar } from "@/components/ui/InlineBar";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { incomeCategories, expenseCategories } from "@/components/constants";
 import { Modal } from "@/components/ui/Modal";
+import { Segmented } from "@/components/ui/Segmented";
 
 type Tx = {
   id: string;
@@ -87,10 +88,7 @@ export default function TransactionsPage() {
         <h1 className="text-xl font-semibold">Transactions</h1>
 
         <form onSubmit={addTx} className="grid grid-cols-2 gap-2">
-        <select className="border rounded-md px-3 py-2" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as any })}>
-          <option value="income">Income</option>
-          <option value="expense">Expense</option>
-        </select>
+        <div className="col-span-2"><Segmented value={form.type} onChange={(v)=>setForm({ ...form, type: v as any })} options={["income","expense"]} /></div>
         <input className="border rounded-md px-3 py-2" type="number" placeholder="Amount" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} required />
         <SearchableSelect
           className="col-span-2"
