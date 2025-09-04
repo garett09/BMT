@@ -90,6 +90,83 @@ export function EnhancedDashboard() {
 
   const [tab, setTab] = useState("Overview");
 
+  // Data-heavy derived metrics for data folks
+  const monthTx = useMemo(() => {
+    const m = monthISO;
+    const expenses = txs.filter((t) => t.type === "expense" && (t.date || "").startsWith(m));
+    const incomes = txs.filter((t) => t.type === "income" && (t.date || "").startsWith(m));
+    const totalExpense = expenses.reduce((s, t) => s + t.amount, 0);
+    const totalIncome = incomes.reduce((s, t) => s + t.amount, 0);
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const dayOfMonth = today.getDate();
+    const avgDailySpend = totalExpense / Math.max(1, dayOfMonth);
+    const burnRate = forecast.recommendedBudget > 0 ? totalExpense / forecast.recommendedBudget : 0;
+    const byCat = expenses.reduce((map: Record<string, number>, t) => { map[t.category] = (map[t.category] || 0) + t.amount; return map; }, {} as Record<string, number>);
+    const top = Object.entries(byCat).sort((a,b)=>b[1]-a[1])[0];
+    const topCategoryShare = top ? top[1] / Math.max(1, totalExpense) : 0;
+    return { totalExpense, totalIncome, avgDailySpend, burnRate, topCategory: top?.[0] || "-", topCategoryShare, daysInMonth, dayOfMonth };
+  }, [txs, monthISO, forecast.recommendedBudget]);
+
+  const spendVolatility = useMemo(() => {
+    // Coefficient of variation of daily expenses in last 30 days
+    const byDay = new Map<string, number>();
+    const now = new Date();
+    for (const t of txs) {
+      if (t.type !== "expense") continue;
+      const d = new Date(t.date || t.createdAt);
+      if ((now.getTime() - d.getTime()) / (24*3600*1000) > 30) continue;
+      const key = (t.date || t.createdAt).slice(0,10);
+      byDay.set(key, (byDay.get(key) || 0) + t.amount);
+    }
+    if (byDay.size === 0) return 0;
+    const values = [...byDay.values()];
+    const mean = values.reduce((s,v)=>s+v,0) / values.length;
+    const variance = values.reduce((s,v)=> s + Math.pow(v - mean, 2), 0) / values.length;
+    const std = Math.sqrt(variance);
+    const cv = std / Math.max(1e-6, mean);
+    return cv; // lower is more stable
+  }, [txs]);
+
+  const incomeStability = useMemo(() => {
+    // Stability of monthly income totals over last 6 months: 1 - CV
+    const buckets = new Map<string, number>();
+    for (const t of txs) {
+      if (t.type !== "income") continue;
+      const key = (t.date || t.createdAt).slice(0,7);
+      buckets.set(key, (buckets.get(key) || 0) + t.amount);
+    }
+    const months = [...buckets.entries()].sort(([a],[b])=> a < b ? -1 : 1).slice(-6).map(([,v])=>v);
+    if (months.length === 0) return 0;
+    const mean = months.reduce((s,v)=>s+v,0) / months.length;
+    const variance = months.reduce((s,v)=> s + Math.pow(v - mean, 2), 0) / months.length;
+    const std = Math.sqrt(variance);
+    const cv = std / Math.max(1e-6, mean);
+    const stability = Math.max(0, Math.min(1, 1 - cv));
+    return stability; // 0..1 (higher is more stable)
+  }, [txs]);
+
+  const weeklyIncomeExpense = useMemo(() => {
+    // map ISO week to { income, expense }
+    const map = new Map<string, { income: number; expense: number }>();
+    for (const t of txs) {
+      const d = new Date(t.date || t.createdAt);
+      const tmp = new Date(d.getTime());
+      const dayNum = (d.getUTCDay() + 6) % 7; // Monday=0
+      tmp.setUTCDate(d.getUTCDate() - dayNum + 3);
+      const firstThursday = tmp.getTime();
+      const jan4 = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 4));
+      const week = 1 + Math.round((firstThursday - Date.UTC(jan4.getUTCFullYear(), 0, 4)) / (7 * 24 * 3600 * 1000));
+      const key = `${tmp.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
+      const curr = map.get(key) || { income: 0, expense: 0 };
+      curr[t.type] += t.amount as number;
+      map.set(key, curr);
+    }
+    return [...map.entries()].sort(([a],[b])=> a < b ? -1 : 1).slice(-8).map(([name, v])=> ({ name, income: v.income, expense: v.expense }));
+  }, [txs]);
+
   return (
     <PullToRefresh onRefresh={fetchAll}>
     <div className="space-y-4">
@@ -125,6 +202,17 @@ export function EnhancedDashboard() {
           <StatCard title="Transactions" value={`${txs.length}`} icon={<Target size={16} />} />
         </div>
 
+        <div className="grid grid-cols-3 gap-3">
+          <KpiCard label="Avg Daily Spend" value={`₱${Math.round(monthTx.avgDailySpend).toLocaleString()}`} tone="neg" />
+          <KpiCard label="Burn Rate" value={`${Math.round(monthTx.burnRate*100)}%`} tone={monthTx.burnRate <= 1 ? "pos" : "neg"} />
+          <KpiCard label="Top Cat Share" value={`${Math.round(monthTx.topCategoryShare*100)}%`} />
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <KpiCard label="Spend Volatility" value={`${(spendVolatility).toFixed(2)}`} />
+          <KpiCard label="Income Stability" value={`${Math.round(incomeStability*100)}%`} tone={incomeStability >= 0.6 ? "pos" : "neg"} />
+          <KpiCard label="Days Elapsed" value={`${monthTx.dayOfMonth}/${monthTx.daysInMonth}`} />
+        </div>
+
         <Section title="Spending Trends">
           <TrendChart data={trendData} />
         </Section>
@@ -136,10 +224,24 @@ export function EnhancedDashboard() {
               {chartData.map((d) => (
                 <div key={d.name} className="flex items-center justify-between border-b border-[var(--border)]/50 pb-1">
                   <span>{d.name}</span>
-                  <span className="text-white">₱{d.expense.toLocaleString()}</span>
+                  <span className="text-white">₱{d.expense.toLocaleString()} ({Math.round((d.expense/Math.max(1, analytics.totalExpense))*100)}%)</span>
                 </div>
               ))}
             </div>
+          </div>
+        </Section>
+
+        <Section title="Weekly Income vs Expense">
+          <div className="w-full h-40">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={weeklyIncomeExpense}>
+                <XAxis dataKey="name" hide />
+                <YAxis hide />
+                <Tooltip formatter={(v: number)=>`₱${Number(v).toLocaleString()}`} />
+                <Bar dataKey="income" fill="#22c55e" radius={[4,4,0,0]} />
+                <Bar dataKey="expense" fill="#ef4444" radius={[4,4,0,0]} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </Section>
 
