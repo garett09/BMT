@@ -1,7 +1,7 @@
 import { Redis } from "@upstash/redis";
 
 // Singleton Redis client using Upstash REST with dev in-memory fallback
-let redisClient: Redis | any | null = null;
+let redisClient: Redis | InMemoryRedis | null = null;
 
 type PipelineCommand = () => Promise<any>;
 
@@ -145,7 +145,9 @@ class InMemoryRedis {
   }
 }
 
-export function getRedis(): Redis | any {
+type RedisClient = Redis | InMemoryRedis;
+
+export function getRedis(): RedisClient {
   if (redisClient) return redisClient;
 
   // Support both Upstash variable names and Vercel KV-style names
