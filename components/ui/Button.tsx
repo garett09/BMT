@@ -14,7 +14,7 @@ type ButtonProps = BaseProps & ButtonHTMLAttributes<HTMLButtonElement> & { href?
 type LinkProps = BaseProps & AnchorHTMLAttributes<HTMLAnchorElement> & { href: string };
 
 export function Button(props: ButtonProps | LinkProps) {
-  const { variant = "primary", size = "md", fullWidth, className, href, ...rest } = props as any;
+  const { variant = "primary", size = "md", fullWidth, className, href, ...rest } = props as ButtonProps & Partial<LinkProps>;
   const base = "rounded-md text-sm font-medium transition active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none shadow-sm";
   const variants: Record<string, string> = {
     primary: "brand-bg text-white hover:opacity-95",
@@ -31,10 +31,10 @@ export function Button(props: ButtonProps | LinkProps) {
 
   if (href) {
     return (
-      <Link href={href} className={classes} {...(rest as any)} />
+      <Link href={href} className={classes} {...(rest as AnchorHTMLAttributes<HTMLAnchorElement>)} />
     );
   }
-  return <button className={classes} {...(rest as any)} />;
+  return <button className={classes} {...(rest as ButtonHTMLAttributes<HTMLButtonElement>)} />;
 }
 
 
