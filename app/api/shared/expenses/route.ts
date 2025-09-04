@@ -19,15 +19,15 @@ export async function POST(req: NextRequest) {
 
   const { partnerEmail } = await req.json();
   const redis = getRedis();
-  const userId = session.user.id as string;
+  const userId2 = userId;
 
   if (!partnerEmail) {
-    await redis.del(keys.sharedPartnerEmail(userId));
+    await redis.del(keys.sharedPartnerEmail(userId2));
     const res = NextResponse.json({ enabled: false });
     return applyCors(req, withSecurityHeaders(res));
   }
 
-  await redis.set(keys.sharedPartnerEmail(userId), String(partnerEmail).toLowerCase());
+  await redis.set(keys.sharedPartnerEmail(userId2), String(partnerEmail).toLowerCase());
   const res = NextResponse.json({ enabled: true, partnerEmail });
   return applyCors(req, withSecurityHeaders(res));
 }
@@ -35,15 +35,16 @@ export async function POST(req: NextRequest) {
 // Fetch combined expenses for the user and partner, if reciprocity is configured
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const userId = (session?.user as any)?.id as string | undefined;
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const rl = await rateLimit(req, "shared:get", 30, 60);
   const base = withSecurityHeaders(NextResponse.next());
   Object.entries(rl.headers).forEach(([k, v]) => base.headers.set(k, v));
   if (rl.limited) return NextResponse.json({ error: "Rate limit" }, { status: 429, headers: base.headers });
 
   const redis = getRedis();
-  const userId = session.user.id as string;
-  const myPartnerEmail = await redis.get<string | null>(keys.sharedPartnerEmail(userId));
+  const uid = userId;
+  const myPartnerEmail = await redis.get<string | null>(keys.sharedPartnerEmail(uid));
 
   if (!myPartnerEmail) {
     const res = NextResponse.json({ expenses: [], partner: null });
@@ -57,11 +58,11 @@ export async function GET(req: NextRequest) {
   }
 
   // Check reciprocity: partner must have set current user's email
-  const myEmail = session.user.email?.toLowerCase();
+  const myEmail = (session?.user as any)?.email?.toLowerCase();
   const partnerPartnerEmail = await redis.get<string | null>(keys.sharedPartnerEmail(partnerId));
   const reciprocal = partnerPartnerEmail === myEmail;
 
-  const idsUser = (await redis.lrange<string>(keys.txIndexByUser(userId), 0, -1)) || [];
+  const idsUser = (await redis.lrange<string>(keys.txIndexByUser(uid), 0, -1)) || [];
   const idsPartner = reciprocal ? ((await redis.lrange<string>(keys.txIndexByUser(partnerId), 0, -1)) || []) : [];
   const allIds = [...idsUser, ...idsPartner];
   const pipeline = redis.pipeline();
