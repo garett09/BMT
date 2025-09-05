@@ -12,7 +12,8 @@ import { useToast } from "@/components/ui/Toast";
 import { ListSkeleton } from "@/components/ui/ListSkeleton";
 import { Segmented } from "@/components/ui/Segmented";
 import { Card, CardContent } from "@/components/ui/Card";
-import { Chip, ProviderBadge } from "@/components/ui/Chip";
+import { Chip, ProviderBadge, ProviderLogo } from "@/components/ui/Chip";
+import { CreditCard, Wallet, Banknote } from "lucide-react";
 
 type Account = { id: string; name: string; type: "cash" | "bank" | "credit" | "other"; balance: number; provider?: string; subtype?: "debit" | "savings" | "checking" | "ewallet" | "credit" | "other" };
 type CreditExtras = { creditLimit?: number; statementDay?: number; dueDay?: number };
@@ -110,13 +111,26 @@ export default function AccountsPage() {
               const low = Number(a.balance) <= 500;
               const limit = (a as any).creditLimit as number | undefined;
               const util = a.subtype === "credit" && typeof limit === "number" && limit > 0 ? Math.min(100, Math.round((Math.abs(a.balance) / limit) * 100)) : null;
+              const icon = a.subtype === "credit" ? <CreditCard size={14} /> : a.type === "cash" ? <Wallet size={14} /> : <Banknote size={14} />;
               return (
                 <ListCard
                   key={a.id}
                   className={low ? "border-l-4 border-l-[var(--negative)]" : undefined}
-                  left={<div className="flex items-center gap-2"><span className="font-medium">{a.name}</span>{(a.subtype||a.type) && <Chip>{a.subtype || a.type}</Chip>}{a.provider && <ProviderBadge name={a.provider} />}{util !== null && <Chip tone={util>50?"neg":"pos"}>{util}%</Chip>}{low && <Chip tone="neg">Low</Chip>}</div>}
+                  left={<div className="flex items-center gap-2 min-w-0"><span className="font-medium flex items-center gap-1 min-w-0">{a.provider && <ProviderLogo name={a.provider} />} <span className="shrink-0">{icon}</span><span className="truncate max-w-[160px]">{a.name}</span></span>{(a.subtype||a.type) && <Chip>{a.subtype || a.type}</Chip>}{a.provider && <ProviderBadge name={a.provider} />}{util !== null && <Chip tone={util>50?"neg":"pos"}>{util}%</Chip>}{low && <Chip tone="neg">Low</Chip>}</div>}
                   sub={<div className="text-xs text-[var(--muted)]">₱{a.balance.toLocaleString()}</div>}
-                  right={<div className="flex gap-2">{low && <Button variant="secondary" onClick={() => { setForm({ ...a } as any); setOpen(true); }}>Fund</Button>}<Button variant="secondary" onClick={() => { setForm(a as any); setOpen(true); }}>Edit</Button><Button variant="secondary" onClick={() => { setTransfer({ fromId: a.id, toId: list.find(x=>x.id!==a.id)?.id || "", amount: "" }); setTransferOpen(true); }}>Transfer</Button><Button variant="danger" onClick={() => delItem(a.id)}>Delete</Button></div>}
+                  right={<div className="flex flex-wrap gap-2 justify-end">{low && (<>
+                    <Button size="sm" variant="secondary" onClick={() => { setForm({ ...a } as any); setOpen(true); }}>Fund</Button>
+                    <Button size="sm" variant="ghost" onClick={async()=>{ const updated: any = { ...a, balance: Number(a.balance)+500 }; const res = await fetch("/api/accounts", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(updated) }); if (res.ok) { push({ title: "+₱500", type: "success" }); load(); } }}>
+                      +₱500
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={async()=>{ const updated: any = { ...a, balance: Number(a.balance)+1000 }; const res = await fetch("/api/accounts", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(updated) }); if (res.ok) { push({ title: "+₱1,000", type: "success" }); load(); } }}>
+                      +₱1,000
+                    </Button>
+                  </>)}
+                  <Button size="sm" variant="secondary" onClick={() => { setForm(a as any); setOpen(true); }}>Edit</Button>
+                  <Button size="sm" variant="secondary" onClick={() => { setTransfer({ fromId: a.id, toId: list.find(x=>x.id!==a.id)?.id || "", amount: "" }); setTransferOpen(true); }}>Transfer</Button>
+                  <Button size="sm" variant="danger" onClick={() => delItem(a.id)}>Delete</Button>
+                  </div>}
                 />
               );
             })
