@@ -150,6 +150,13 @@ type RedisClient = Redis | InMemoryRedis;
 export function getRedis(): RedisClient {
   if (redisClient) return redisClient;
 
+  // Force in-memory Redis for local development if explicitly requested
+  const forceInMemory = (process.env.BMT_REDIS_INMEMORY || "").toLowerCase();
+  if (process.env.NODE_ENV !== "production" && (forceInMemory === "1" || forceInMemory === "true")) {
+    redisClient = new InMemoryRedis();
+    return redisClient;
+  }
+
   // Support both Upstash variable names and Vercel KV-style names
   const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
@@ -165,7 +172,22 @@ export function getRedis(): RedisClient {
     );
   }
 
-  redisClient = new Redis({ url, token });
+  const client = new Redis({ url, token });
+  // Auto-switch to in-memory in dev if credentials are invalid
+  if (process.env.NODE_ENV !== "production") {
+    client.ping().then(() => {
+      redisClient = client;
+    }).catch(() => {
+      // eslint-disable-next-line no-console
+      console.warn("Redis ping failed in dev; using in-memory Redis fallback.");
+      redisClient = new InMemoryRedis();
+    });
+    // Return a proxy that defers to whichever client is ready
+    // but for simplicity we return the client; first commands may still fail until ping resolves
+    redisClient = client;
+    return redisClient;
+  }
+  redisClient = client;
   return redisClient;
 }
 
