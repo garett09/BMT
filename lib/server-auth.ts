@@ -1,8 +1,6 @@
 import { verifyJwt } from "@/lib/jwt";
 import { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 
 export async function getUserIdFromAuth(req: NextRequest): Promise<string | null> {
   // 1) Authorization: Bearer <token>
@@ -22,12 +20,6 @@ export async function getUserIdFromAuth(req: NextRequest): Promise<string | null
   try {
     const nextAuthToken = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
     const id = (nextAuthToken as unknown as { sub?: string; id?: string } | null)?.sub || (nextAuthToken as any)?.id;
-    if (id) return String(id);
-  } catch {}
-  // 4) NextAuth server session (if available)
-  try {
-    const session = await getServerSession(authOptions);
-    const id = (session?.user as unknown as { id?: string } | null)?.id;
     if (id) return String(id);
   } catch {}
   return null;
