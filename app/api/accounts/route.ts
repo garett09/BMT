@@ -14,6 +14,10 @@ type Account = {
   balance: number;
   provider?: string; // e.g., BPI, BDO, Maya, GCash
   subtype?: "debit" | "savings" | "checking" | "ewallet" | "credit" | "other";
+  // Credit card optional fields
+  creditLimit?: number;
+  statementDay?: number; // 1-31
+  dueDay?: number; // 1-31
 };
 
 const AccountSchema = z.object({
@@ -23,6 +27,9 @@ const AccountSchema = z.object({
   balance: z.number(),
   provider: z.string().optional(),
   subtype: z.enum(["debit", "savings", "checking", "ewallet", "credit", "other"]).optional(),
+  creditLimit: z.number().min(0).optional(),
+  statementDay: z.number().int().min(1).max(31).optional(),
+  dueDay: z.number().int().min(1).max(31).optional(),
 });
 
 export async function OPTIONS(req: NextRequest) {

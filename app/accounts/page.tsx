@@ -12,18 +12,21 @@ import { useToast } from "@/components/ui/Toast";
 import { ListSkeleton } from "@/components/ui/ListSkeleton";
 import { Segmented } from "@/components/ui/Segmented";
 import { Card, CardContent } from "@/components/ui/Card";
-import { Chip } from "@/components/ui/Chip";
+import { Chip, ProviderBadge } from "@/components/ui/Chip";
 
 type Account = { id: string; name: string; type: "cash" | "bank" | "credit" | "other"; balance: number; provider?: string; subtype?: "debit" | "savings" | "checking" | "ewallet" | "credit" | "other" };
+type CreditExtras = { creditLimit?: number; statementDay?: number; dueDay?: number };
 
 export default function AccountsPage() {
   const { push } = useToast();
   const [list, setList] = useState<Account[]>([]);
-  const [form, setForm] = useState<Account>({ id: "", name: "", type: "cash", balance: 0, provider: "", subtype: "savings" });
+  const [form, setForm] = useState<Account & CreditExtras>({ id: "", name: "", type: "cash", balance: 0, provider: "", subtype: "savings" });
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
   const [filter, setFilter] = useState<"all" | "cash" | "bank" | "credit" | "other">("all");
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [transfer, setTransfer] = useState<{ fromId: string; toId: string; amount: string }>({ fromId: "", toId: "", amount: "" });
 
   const load = async () => {
     setLoading(true);
@@ -48,6 +51,11 @@ export default function AccountsPage() {
     const payload: any = { ...base };
     if (form.type !== "cash") {
       payload.subtype = form.subtype || (form.type === "credit" ? "credit" : "savings");
+    }
+    if (form.type === "credit") {
+      payload.creditLimit = typeof form.creditLimit === "number" ? form.creditLimit : undefined;
+      payload.statementDay = typeof form.statementDay === "number" ? form.statementDay : undefined;
+      payload.dueDay = typeof form.dueDay === "number" ? form.dueDay : undefined;
     }
     const res = await fetch("/api/accounts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), credentials: "include" });
     if (res.ok) {
@@ -97,13 +105,15 @@ export default function AccountsPage() {
           ) : (
             filtered.map((a) => {
               const low = Number(a.balance) <= 500;
+              const limit = (a as any).creditLimit as number | undefined;
+              const util = a.subtype === "credit" && typeof limit === "number" && limit > 0 ? Math.min(100, Math.round((Math.abs(a.balance) / limit) * 100)) : null;
               return (
                 <ListCard
                   key={a.id}
                   className={low ? "border-l-4 border-l-[var(--negative)]" : undefined}
-                  left={<div className="flex items-center gap-2"><span className="font-medium">{a.name}</span>{(a.subtype||a.type) && <Chip>{a.subtype || a.type}</Chip>}{a.provider && <Chip>{a.provider}</Chip>}{low && <Chip tone="neg">Low</Chip>}</div>}
+                  left={<div className="flex items-center gap-2"><span className="font-medium">{a.name}</span>{(a.subtype||a.type) && <Chip>{a.subtype || a.type}</Chip>}{a.provider && <ProviderBadge name={a.provider} />}{util !== null && <Chip tone={util>50?"neg":"pos"}>{util}%</Chip>}{low && <Chip tone="neg">Low</Chip>}</div>}
                   sub={<div className="text-xs text-[var(--muted)]">₱{a.balance.toLocaleString()}</div>}
-                  right={<div className="flex gap-2">{low && <Button variant="secondary" onClick={() => { setForm({ ...a }); setOpen(true); }}>Fund</Button>}<Button variant="secondary" onClick={() => { setForm(a); setOpen(true); }}>Edit</Button><Button variant="danger" onClick={() => delItem(a.id)}>Delete</Button></div>}
+                  right={<div className="flex gap-2">{low && <Button variant="secondary" onClick={() => { setForm({ ...a } as any); setOpen(true); }}>Fund</Button>}<Button variant="secondary" onClick={() => { setForm(a as any); setOpen(true); }}>Edit</Button><Button variant="secondary" onClick={() => { setTransfer({ fromId: a.id, toId: list.find(x=>x.id!==a.id)?.id || "", amount: "" }); setTransferOpen(true); }}>Transfer</Button><Button variant="danger" onClick={() => delItem(a.id)}>Delete</Button></div>}
                 />
               );
             })
@@ -149,6 +159,13 @@ export default function AccountsPage() {
               )}
               {form.type !== "cash" && (
               <SearchableSelect className="col-span-2" options={[{ value: "", label: "No Provider" }, ...providers]} value={form.provider || ""} onChange={(v) => setForm({ ...form, provider: v })} placeholder="Provider (optional)" />
+              )}
+              {form.type === "credit" && (
+                <>
+                  <input className="border rounded-md px-3 py-2" type="number" inputMode="decimal" placeholder="Credit limit" value={form.creditLimit ?? ""} onChange={(e)=> setForm({ ...form, creditLimit: e.target.value ? Number(e.target.value) : undefined })} />
+                  <input className="border rounded-md px-3 py-2" type="number" min={1} max={31} placeholder="Statement day (1-31)" value={form.statementDay ?? ""} onChange={(e)=> setForm({ ...form, statementDay: e.target.value ? Number(e.target.value) : undefined })} />
+                  <input className="border rounded-md px-3 py-2" type="number" min={1} max={31} placeholder="Due day (1-31)" value={form.dueDay ?? ""} onChange={(e)=> setForm({ ...form, dueDay: e.target.value ? Number(e.target.value) : undefined })} />
+                </>
               )}
               <div className="col-span-2 space-y-2">
                 <input className="border rounded-md px-3 py-2 w-full" inputMode="decimal" step="0.01" min="0" type="number" placeholder="Starting balance" value={form.balance === 0 ? "" : (form.balance as number)} onChange={(e) => setForm({ ...form, balance: Number(e.target.value || 0) })} />
