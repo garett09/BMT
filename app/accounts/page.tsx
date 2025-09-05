@@ -24,7 +24,6 @@ export default function AccountsPage() {
   const [open, setOpen] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
   const [filter, setFilter] = useState<"all" | "cash" | "bank" | "credit" | "other">("all");
-  const [query, setQuery] = useState("");
 
   const load = async () => {
     setLoading(true);
@@ -75,19 +74,9 @@ export default function AccountsPage() {
       <main className="flex-1 p-4 space-y-4 max-w-md mx-auto w-full">
         <HeroBanner title="Account Management" subtitle="Manage all your financial accounts in one place" />
 
-        <div className="grid grid-cols-3 gap-2">
-          <div className="col-span-2">
-            <input
-              className="border rounded-md px-3 py-2 w-full"
-              placeholder="Search name, provider or type"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </div>
-          <Button onClick={() => { setOpen(true); setTimeout(()=>nameRef.current?.focus(), 0); }}>
-            Add
-          </Button>
-          <div className="col-span-3"><Segmented value={filter} onChange={(v)=> setFilter(v as any)} options={["all","cash","bank","credit","other"]} /></div>
+        <div className="space-y-2">
+          <Button fullWidth onClick={() => { setForm({ id: "", name: "", type: "cash", balance: 0, provider: "", subtype: "savings" }); setOpen(true); setTimeout(()=>nameRef.current?.focus(), 0); }}>Add Account</Button>
+          <Segmented value={filter} onChange={(v)=> setFilter(v as any)} options={["all","cash","bank","credit","other"]} />
         </div>
 
         <div className="rounded-md border card p-3 grid grid-cols-3 gap-2 items-center">
