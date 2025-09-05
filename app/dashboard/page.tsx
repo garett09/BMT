@@ -18,9 +18,8 @@ export default async function DashboardPage() {
           {/* EnhancedDashboard is client; fallback covers initial fetch-heavy UI */}
           <EnhancedDashboard />
         </Suspense>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 gap-2">
           <Link href="/transactions" className="rounded-md border p-3 text-center text-sm">Manage Transactions</Link>
-          <Link href="/settings" className="rounded-md border p-3 text-center text-sm">Settings</Link>
         </div>
       </main>
       <BottomNav items={[
