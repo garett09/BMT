@@ -39,6 +39,7 @@ export async function GET(req: NextRequest) {
   const dp = new DataPersistence<SavingsGoal[]>(userId, "savings");
   const data = (await dp.get())?.value || [];
   const res = NextResponse.json(data);
+  res.headers.set("Cache-Control", "private, max-age=0, s-maxage=30, stale-while-revalidate=120");
   return applyCors(req, withSecurityHeaders(res));
 }
 
