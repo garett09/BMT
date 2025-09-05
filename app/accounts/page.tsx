@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/Toast";
 import { ListSkeleton } from "@/components/ui/ListSkeleton";
 import { Segmented } from "@/components/ui/Segmented";
 import { Card, CardContent } from "@/components/ui/Card";
+import { Chip } from "@/components/ui/Chip";
 
 type Account = { id: string; name: string; type: "cash" | "bank" | "credit" | "other"; balance: number; provider?: string; subtype?: "debit" | "savings" | "checking" | "ewallet" | "credit" | "other" };
 
@@ -22,14 +23,29 @@ export default function AccountsPage() {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
+  const [filter, setFilter] = useState<"all" | "cash" | "bank" | "credit" | "other">("all");
+  const [query, setQuery] = useState("");
 
   const load = async () => {
     setLoading(true);
-    const res = await fetch("/api/accounts", { cache: "no-store" });
+    const res = await fetch("/api/accounts", { cache: "no-store", credentials: "include" });
     if (res.ok) setList(await res.json());
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
+
+  const totalBalance = list.reduce((s, a) => s + Number(a.balance || 0), 0);
+  const filtered = list
+    .filter((a) => (filter === "all" ? true : a.type === filter))
+    .filter((a) => {
+      const q = query.trim().toLowerCase();
+      if (!q) return true;
+      return (
+        a.name.toLowerCase().includes(q) ||
+        (a.provider || "").toLowerCase().includes(q) ||
+        (a.subtype || a.type).toLowerCase().includes(q)
+      );
+    });
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,22 +66,46 @@ export default function AccountsPage() {
     <div className="min-h-dvh flex flex-col">
       <main className="flex-1 p-4 space-y-4 max-w-md mx-auto w-full">
         <HeroBanner title="Account Management" subtitle="Manage all your financial accounts in one place" />
-        <div className="flex justify-end"><Button onClick={() => { setOpen(true); setTimeout(()=>nameRef.current?.focus(), 0); }}>Add Account</Button></div>
+
+        <div className="grid grid-cols-3 gap-2">
+          <div className="col-span-2">
+            <input
+              className="border rounded-md px-3 py-2 w-full"
+              placeholder="Search name, provider or type"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </div>
+          <Button onClick={() => { setOpen(true); setTimeout(()=>nameRef.current?.focus(), 0); }}>
+            Add
+          </Button>
+          <div className="col-span-3"><Segmented value={filter} onChange={(v)=> setFilter(v as any)} options={["all","cash","bank","credit","other"]} /></div>
+        </div>
+
+        <div className="rounded-md border card p-3 grid grid-cols-3 gap-2 items-center">
+          <div className="col-span-2">
+            <div className="text-sm text-[var(--muted)]">Total Balance</div>
+            <div className="text-xl font-semibold">₱{totalBalance.toLocaleString()}</div>
+          </div>
+          <div className="text-right text-xs text-[var(--muted)]">
+            {list.length} accounts
+          </div>
+        </div>
 
         <div className="space-y-2">
           {loading ? (
             <ListSkeleton />
-          ) : list.length === 0 ? (
+          ) : filtered.length === 0 ? (
             <p className="text-sm text-muted-foreground">No accounts yet.</p>
           ) : (
-            list.map((a) => {
+            filtered.map((a) => {
               const low = Number(a.balance) <= 500;
               return (
                 <ListCard
                   key={a.id}
                   className={low ? "border-l-4 border-l-[var(--negative)]" : undefined}
-                  left={<div className="flex items-center gap-2">{a.name} • {a.subtype || a.type}{a.provider ? ` • ${a.provider}` : ""}{low && <span className="text-[10px] text-[var(--negative)]">Low</span>}</div>}
-                  sub={`₱${a.balance.toLocaleString()}`}
+                  left={<div className="flex items-center gap-2"><span className="font-medium">{a.name}</span>{(a.subtype||a.type) && <Chip>{a.subtype || a.type}</Chip>}{a.provider && <Chip>{a.provider}</Chip>}{low && <Chip tone="neg">Low</Chip>}</div>}
+                  sub={<div className="text-xs text-[var(--muted)]">₱{a.balance.toLocaleString()}</div>}
                   right={<div className="flex gap-2">{low && <Button variant="secondary" onClick={() => { setForm({ ...a }); setOpen(true); }}>Fund</Button>}<Button variant="secondary" onClick={() => { setForm(a); setOpen(true); }}>Edit</Button><Button variant="danger" onClick={() => delItem(a.id)}>Delete</Button></div>}
                 />
               );
