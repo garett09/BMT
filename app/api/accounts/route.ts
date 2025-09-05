@@ -5,7 +5,7 @@ import { z } from "zod";
 import { withSecurityHeaders, applyCors } from "@/lib/security";
 import { rateLimit } from "@/lib/rateLimit";
 
-export const runtime = "nodejs";
+export const runtime = "edge";
 
 type Account = {
   id: string;
