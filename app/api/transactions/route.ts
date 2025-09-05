@@ -82,6 +82,19 @@ export async function POST(req: NextRequest) {
     accountId: parsed.data.accountId,
     recurring: parsed.data.recurring,
   };
+  // Rules engine: round-up to nearest 10 and send to savings if classification includes "roundup"
+  try {
+    if (tx.type === "expense" && (tx.classification || "").toLowerCase().includes("roundup")) {
+      const next10 = Math.ceil(tx.amount / 10) * 10;
+      const delta = Math.max(0, next10 - tx.amount);
+      if (delta >= 1) {
+        const id2 = randomUUID();
+        const saveTx: TransactionRecord = { ...tx, id: id2, type: "income", amount: delta, category: "Savings", description: "Round-up", createdAt: now };
+        await redis.set(keys.txEntity(id2), saveTx);
+        await redis.lpush(keys.txIndexByUser(userId), id2);
+      }
+    }
+  } catch {}
   await redis.set(keys.txEntity(id), tx);
   await redis.lpush(keys.txIndexByUser(userId), id);
   const res = NextResponse.json(tx);
