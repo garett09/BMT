@@ -27,6 +27,10 @@ export async function OPTIONS(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const userId = await getUserIdFromAuth(req);
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const rl = await rateLimit(req, "rules:get", 120, 60);
+  const base = withSecurityHeaders(NextResponse.next());
+  Object.entries(rl.headers).forEach(([k, v]) => base.headers.set(k, v));
+  if (rl.limited) return NextResponse.json({ error: "Rate limit" }, { status: 429, headers: base.headers });
   const dp = new DataPersistence<Rule[]>(userId, "rules");
   const list = (await dp.get())?.value || [];
   const res = NextResponse.json(list);

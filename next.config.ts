@@ -17,6 +17,11 @@ const nextConfig: NextConfig = {
       source: "/(.*)",
       headers: [
         { key: "Cache-Control", value: "public, max-age=0, s-maxage=31536000, stale-while-revalidate=60" },
+        // Security: strengthen defaults (some routes may override via lib/security)
+        { key: "X-Frame-Options", value: "DENY" },
+        { key: "X-Content-Type-Options", value: "nosniff" },
+        { key: "Referrer-Policy", value: "no-referrer" },
+        { key: "Permissions-Policy", value: "geolocation=(), microphone=(), camera=()" },
       ],
     },
   ],

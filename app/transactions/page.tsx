@@ -137,7 +137,7 @@ export default function TransactionsPage() {
     e.preventDefault();
     if (!editForm) return;
     const res = await fetch("/api/transactions", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...editForm, amount: Number(editForm.amount) }), credentials: "include" });
-    if (res.ok) { setEditOpen(false); setEditForm(null); fetchTxs(); }
+    if (res.ok) { push({ title: "Saved", type: "success" }); setEditOpen(false); setEditForm(null); fetchTxs(); } else { push({ title: "Save failed", type: "error" }); }
   };
 
   const openNativePicker = (e: React.FocusEvent<HTMLInputElement> | React.MouseEvent<HTMLInputElement>) => {

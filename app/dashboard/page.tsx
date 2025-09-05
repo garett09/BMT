@@ -4,6 +4,8 @@ import Link from "next/link";
 import { EnhancedDashboard } from "@/components/EnhancedDashboard";
 import { BottomNav } from "@/components/ui/BottomNav";
 import { TopBar } from "@/components/ui/TopBar";
+import { Suspense } from "react";
+import { ListSkeleton } from "@/components/ui/ListSkeleton";
 
 export default async function DashboardPage() {
   await getServerSession(authOptions); // ensure protected via middleware too
@@ -12,9 +14,13 @@ export default async function DashboardPage() {
       <TopBar />
       <main className="flex-1 p-4 space-y-4 max-w-md mx-auto w-full">
         <h1 className="text-xl font-semibold">Dashboard</h1>
-        <EnhancedDashboard />
-        <div className="grid grid-cols-1 gap-2">
+        <Suspense fallback={<ListSkeleton count={3} />}>
+          {/* EnhancedDashboard is client; fallback covers initial fetch-heavy UI */}
+          <EnhancedDashboard />
+        </Suspense>
+        <div className="grid grid-cols-2 gap-2">
           <Link href="/transactions" className="rounded-md border p-3 text-center text-sm">Manage Transactions</Link>
+          <Link href="/settings" className="rounded-md border p-3 text-center text-sm">Settings</Link>
         </div>
       </main>
       <BottomNav items={[
