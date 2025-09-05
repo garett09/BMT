@@ -32,6 +32,7 @@
 body {
   background: radial-gradient(1200px 600px at 50% -10%, #15151f 0%, transparent 60%), var(--background);
   color: var(--foreground);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 .card {
