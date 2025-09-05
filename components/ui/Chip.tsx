@@ -38,4 +38,33 @@ export function ProviderBadge({ name, className }: { name: string; className?: s
   );
 }
 
+export function ProviderLogo({ name, className }: { name: string; className?: string }) {
+  const colors: Record<string, string> = {
+    BPI: "#dc2626",
+    BDO: "#1d4ed8",
+    Metrobank: "#0ea5e9",
+    PNB: "#0ea5e9",
+    Chinabank: "#ef4444",
+    "Security Bank": "#22c55e",
+    RCBC: "#0ea5e9",
+    UnionBank: "#f97316",
+    EastWest: "#a855f7",
+    LandBank: "#16a34a",
+    UCPB: "#0ea5e9",
+    AUB: "#f59e0b",
+    PSBank: "#ef4444",
+    Maya: "#22c55e",
+    GCash: "#2563eb",
+    GrabPay: "#16a34a",
+    ShopeePay: "#ea580c",
+  } as const;
+  const color = colors[name] || "#64748b";
+  const initials = name.split(/\s+/).map(s=>s[0]).join("").slice(0,2).toUpperCase();
+  return (
+    <span className={clsx("inline-flex items-center justify-center rounded-full text-[10px] font-semibold", className)} style={{ width: 18, height: 18, backgroundColor: color+"26", color, border: `1px solid ${color}40` }}>
+      {initials}
+    </span>
+  );
+}
+
 
