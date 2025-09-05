@@ -35,23 +35,31 @@ export default function AccountsPage() {
   useEffect(() => { load(); }, []);
 
   const totalBalance = list.reduce((s, a) => s + Number(a.balance || 0), 0);
-  const filtered = list
-    .filter((a) => (filter === "all" ? true : a.type === filter))
-    .filter((a) => {
-      const q = query.trim().toLowerCase();
-      if (!q) return true;
-      return (
-        a.name.toLowerCase().includes(q) ||
-        (a.provider || "").toLowerCase().includes(q) ||
-        (a.subtype || a.type).toLowerCase().includes(q)
-      );
-    });
+  const filtered = list.filter((a) => (filter === "all" ? true : a.type === filter));
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
-    const payload = { ...form, id: form.id || String(Date.now()), balance: Number(form.balance) };
+    const base = {
+      id: form.id || String(Date.now()),
+      name: String(form.name || "").trim(),
+      type: form.type,
+      balance: Number(form.balance || 0),
+      provider: form.provider?.trim() ? form.provider : undefined,
+    } as Partial<Account> & { id: string; name: string; type: Account["type"]; balance: number };
+    const payload: any = { ...base };
+    if (form.type !== "cash") {
+      payload.subtype = form.subtype || (form.type === "credit" ? "credit" : "savings");
+    }
     const res = await fetch("/api/accounts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), credentials: "include" });
-    if (res.ok) { setForm({ id: "", name: "", type: "cash", balance: 0, provider: "" }); setOpen(false); push({ title: "Account saved", type: "success" }); load(); } else { push({ title: "Save failed", type: "error" }); }
+    if (res.ok) {
+      setForm({ id: "", name: "", type: "cash", balance: 0, provider: "" });
+      setOpen(false);
+      push({ title: "Account saved", type: "success" });
+      load();
+    } else {
+      const msg = await res.text().catch(() => "");
+      push({ title: `Save failed${msg ? ": "+msg : ""}`, type: "error" });
+    }
   };
 
   const delItem = async (id: string) => {
@@ -120,18 +128,51 @@ export default function AccountsPage() {
           <CardContent>
             <form onSubmit={save} className="grid grid-cols-2 gap-2">
               <input ref={nameRef} className="border rounded-md px-3 py-2 col-span-2" placeholder="Account name (e.g., BPI Salary)" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-              <div className="col-span-2"><Segmented value={form.type} onChange={(v)=>setForm({ ...form, type: v as any })} options={["cash","bank","credit","other"]} /></div>
+              <div className="col-span-2"><Segmented value={form.type} onChange={(v)=>{
+                const nextType = v as "cash" | "bank" | "credit" | "other";
+                const defaults: Record<"cash"|"bank"|"credit"|"other", Account["subtype"]> = {
+                  cash: undefined,
+                  bank: "savings",
+                  credit: "credit",
+                  other: "ewallet",
+                };
+                setForm((f)=> ({
+                  ...f,
+                  type: nextType,
+                  subtype: defaults[nextType],
+                  provider: nextType === "cash" ? "" : f.provider,
+                }));
+              }} options={["cash","bank","credit","other"]} /></div>
+              {form.type !== "cash" && (
               <select className="border rounded-md px-3 py-2" value={form.subtype} onChange={(e) => setForm({ ...form, subtype: e.target.value as any })}>
-                <option value="savings">Savings</option>
-                <option value="checking">Checking</option>
-                <option value="debit">Debit</option>
-                <option value="credit">Credit</option>
-                <option value="ewallet">eWallet</option>
-                <option value="other">Other</option>
+                {form.type === "bank" && (<>
+                  <option value="savings">Savings</option>
+                  <option value="checking">Checking</option>
+                  <option value="debit">Debit</option>
+                  <option value="other">Other</option>
+                </>)}
+                {form.type === "credit" && (<option value="credit">Credit</option>)}
+                {form.type === "other" && (<>
+                  <option value="ewallet">eWallet</option>
+                  <option value="other">Other</option>
+                </>)}
               </select>
+              )}
+              {form.type !== "cash" && (
               <SearchableSelect className="col-span-2" options={[{ value: "", label: "No Provider" }, ...providers]} value={form.provider || ""} onChange={(v) => setForm({ ...form, provider: v })} placeholder="Provider (optional)" />
-              <input className="border rounded-md px-3 py-2" type="number" placeholder="Starting balance" value={form.balance} onChange={(e) => setForm({ ...form, balance: Number(e.target.value) })} />
-              <Button type="submit" className="col-span-2" fullWidth>Save</Button>
+              )}
+              <div className="col-span-2 space-y-2">
+                <input className="border rounded-md px-3 py-2 w-full" inputMode="decimal" step="0.01" min="0" type="number" placeholder="Starting balance" value={form.balance === 0 ? "" : (form.balance as number)} onChange={(e) => setForm({ ...form, balance: Number(e.target.value || 0) })} />
+                <div className="flex gap-2 overflow-x-auto">
+                  {[0,500,1000,5000,10000].map((n)=> (
+                    <button key={n} type="button" className="text-[10px] border rounded-full px-2.5 py-1 text-[var(--muted)] hover:text-[var(--foreground)]" onClick={()=> setForm((f)=> ({ ...f, balance: n }))}>₱{n.toLocaleString()}</button>
+                  ))}
+                </div>
+              </div>
+              <div className="col-span-2 flex gap-2">
+                <Button type="button" variant="secondary" className="flex-1" fullWidth onClick={()=> setOpen(false)}>Cancel</Button>
+                <Button type="submit" className="flex-1" fullWidth disabled={!form.name.trim()}>Save</Button>
+              </div>
             </form>
           </CardContent>
         </Card>

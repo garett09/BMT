@@ -53,11 +53,17 @@ export async function POST(req: NextRequest) {
   if (rl.limited) return NextResponse.json({ error: "Rate limit" }, { status: 429, headers: base.headers });
 
   const body = await req.json();
-  const parsed = AccountSchema.safeParse({
+  // Normalize optional fields coming from the client
+  const normalized = {
     ...body,
     balance: typeof body.balance === "string" ? Number(body.balance) : body.balance,
-  });
-  if (!parsed.success) return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+    provider: typeof body.provider === "string" && body.provider.trim().length > 0 ? String(body.provider) : undefined,
+    subtype: typeof body.subtype === "string" && body.subtype.trim().length > 0 ? String(body.subtype) : undefined,
+  };
+  const parsed = AccountSchema.safeParse(normalized);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid payload", details: parsed.error.flatten() }, { status: 400 });
+  }
 
   const dp = new DataPersistence<Account[]>(userId, "accounts");
   const list = (await dp.get())?.value || [];
