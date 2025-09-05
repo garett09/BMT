@@ -41,6 +41,7 @@ export default function TransactionsPage() {
   const amountRef = useRef<HTMLInputElement>(null);
   const [submitting, setSubmitting] = useState(false);
   const longPressRef = useRef<number | null>(null);
+  const [swipe, setSwipe] = useState<{ id: string; open: boolean; dx: number } | null>(null);
 
   const fetchTxs = async () => {
     setLoading(true);
@@ -293,13 +294,25 @@ export default function TransactionsPage() {
               onPointerUp={() => { if (longPressRef.current) window.clearTimeout(longPressRef.current); }}
               onPointerLeave={() => { if (longPressRef.current) window.clearTimeout(longPressRef.current); }}
               onContextMenu={(e) => { e.preventDefault(); duplicateTx(t); }}
+              onTouchStart={(e)=> { const x = e.touches[0].clientX; setSwipe({ id: t.id, open: swipe?.id===t.id ? swipe.open : false, dx: x }); }}
+              onTouchMove={(e)=> { if (!swipe || swipe.id!==t.id) return; const dx = e.touches[0].clientX - (swipe.dx||0); setSwipe({ ...swipe, dx }); }}
+              onTouchEnd={()=> { if (!swipe || swipe.id!==t.id) return; const open = (swipe.dx||0) < -60; setSwipe({ id: t.id, open, dx: 0 }); }}
+              className="relative"
             >
-              <ListCard
-                className={t.type === "income" ? "border-l-4 border-l-[var(--positive)]" : "border-l-4 border-l-[var(--negative)]"}
-                left={<div className="flex items-center gap-2"><Chip tone={t.type === "income" ? "pos" : "neg"}>{t.type}</Chip><span>{t.category}</span>{t.accountId && <span className="text-[10px] text-[var(--muted)]">• {accounts.find(a => a.id === t.accountId)?.name || t.accountId}</span>}</div>}
-                sub={<InlineBar value={Math.min(100, t.amount)} max={100} color={t.type === "income" ? "#22c55e" : "#ef4444"} />}
-                right={<div className="flex items-center gap-2"><div className={t.type === "income" ? "text-[var(--positive)]" : "text-[var(--negative)]"}>₱{t.amount.toLocaleString()}</div><Button variant="secondary" onClick={() => openEdit(t)}>Edit</Button><Button variant="danger" onClick={() => { if (t.id !== "optimistic" && confirm("Delete this transaction?")) delTx(t.id); }}>Delete</Button></div>}
-              />
+              {/* action row */}
+              <div className="absolute inset-0 flex items-center justify-end gap-2 pr-3" style={{ zIndex: 0 }}>
+                <Button variant="secondary" onClick={() => openEdit(t)}>Edit</Button>
+                <Button variant="danger" onClick={() => { if (t.id !== "optimistic" && confirm("Delete this transaction?")) delTx(t.id); }}>Delete</Button>
+                <Button variant="secondary" onClick={() => duplicateTx(t)}>Duplicate</Button>
+              </div>
+              <div style={{ transform: `translateX(${swipe && swipe.id===t.id ? Math.max(-120, Math.min(0, swipe.open ? -120 : (swipe.dx||0))) : 0}px)`, transition: swipe && swipe.id===t.id && swipe.dx!==0 ? "none" : "transform 150ms ease" }}>
+                <ListCard
+                  className={t.type === "income" ? "border-l-4 border-l-[var(--positive)]" : "border-l-4 border-l-[var(--negative)]"}
+                  left={<div className="flex items-center gap-2"><Chip tone={t.type === "income" ? "pos" : "neg"}>{t.type}</Chip><span>{t.category}</span>{t.accountId && <span className="text-[10px] text-[var(--muted)]">• {accounts.find(a => a.id === t.accountId)?.name || t.accountId}</span>}</div>}
+                  sub={<InlineBar value={Math.min(100, t.amount)} max={100} color={t.type === "income" ? "#22c55e" : "#ef4444"} />}
+                  right={<div className="flex items-center gap-2"><div className={t.type === "income" ? "text-[var(--positive)]" : "text-[var(--negative)]"}>₱{t.amount.toLocaleString()}</div></div>}
+                />
+              </div>
             </div>
           ))
         )}
