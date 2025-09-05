@@ -10,4 +10,32 @@ export function Chip({ children, tone = "neutral", className }: { children: Reac
   return <span className={clsx("inline-flex items-center rounded-full px-2.5 py-1 text-[10px] border", tones[tone], className)}>{children}</span>;
 }
 
+export function ProviderBadge({ name, className }: { name: string; className?: string }) {
+  const colors: Record<string, string> = {
+    BPI: "#dc2626",
+    BDO: "#1d4ed8",
+    Metrobank: "#0ea5e9",
+    PNB: "#0ea5e9",
+    Chinabank: "#ef4444",
+    "Security Bank": "#22c55e",
+    RCBC: "#0ea5e9",
+    UnionBank: "#f97316",
+    EastWest: "#a855f7",
+    LandBank: "#16a34a",
+    UCPB: "#0ea5e9",
+    AUB: "#f59e0b",
+    PSBank: "#ef4444",
+    Maya: "#22c55e",
+    GCash: "#2563eb",
+    GrabPay: "#16a34a",
+    ShopeePay: "#ea580c",
+  } as const;
+  const color = colors[name] || "#64748b";
+  return (
+    <span className={clsx("inline-flex items-center rounded-full px-2.5 py-1 text-[10px] border", className)} style={{ color, backgroundColor: color + "26", borderColor: color + "40" }}>
+      {name}
+    </span>
+  );
+}
+
 
