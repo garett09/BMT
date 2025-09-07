@@ -35,6 +35,16 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
+/* Mobile-first touch targets */
+button, a, input, select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Improve sticky top areas on mobile */
+.sticky {
+  backdrop-filter: saturate(180%) blur(8px);
+}
+
 .card {
   background: var(--card);
   border-color: var(--border);

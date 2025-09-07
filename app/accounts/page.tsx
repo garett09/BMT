@@ -7,6 +7,7 @@ import { Modal } from "@/components/ui/Modal";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { providers } from "@/components/constants";
 import { BottomNav } from "@/components/ui/BottomNav";
+import { TopBar } from "@/components/ui/TopBar";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { useToast } from "@/components/ui/Toast";
 import { ListSkeleton } from "@/components/ui/ListSkeleton";
@@ -82,6 +83,7 @@ export default function AccountsPage() {
   return (
     <PullToRefresh onRefresh={load}>
     <div className="min-h-dvh flex flex-col">
+      <TopBar />
       <main className="flex-1 p-4 space-y-4 max-w-md mx-auto w-full">
         <HeroBanner title="Account Management" subtitle="Manage all your financial accounts in one place" />
 

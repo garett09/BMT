@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { BottomNav } from "@/components/ui/BottomNav";
+import { TopBar } from "@/components/ui/TopBar";
 import { Chip } from "@/components/ui/Chip";
 import { ListCard } from "@/components/ui/ListCard";
 import { InlineBar } from "@/components/ui/InlineBar";
@@ -208,6 +209,7 @@ export default function TransactionsPage() {
   return (
     <PullToRefresh onRefresh={fetchTxs}>
     <div className="min-h-dvh flex flex-col">
+      <TopBar />
       <main className="flex-1 p-4 space-y-4 max-w-md mx-auto w-full">
         <h1 className="text-xl font-semibold">Transactions</h1>
         <Card className="card">

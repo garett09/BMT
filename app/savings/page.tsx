@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { InlineBar } from "@/components/ui/InlineBar";
 import { BottomNav } from "@/components/ui/BottomNav";
+import { TopBar } from "@/components/ui/TopBar";
 
 type SavingsGoal = { id: string; name: string; targetAmount: number; currentAmount: number; dueDate?: string };
 
@@ -37,6 +38,7 @@ export default function SavingsPage() {
 
   return (
     <div className="min-h-dvh flex flex-col">
+      <TopBar />
       <main className="flex-1 p-4 space-y-4 max-w-md mx-auto w-full">
         <HeroBanner title="Savings Goals" subtitle="Track and achieve your savings targets" color="#06b6d4" />
         <div className="flex justify-end"><Button onClick={() => setOpen(true)}>Add Goal</Button></div>

@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { TopBar } from "@/components/ui/TopBar";
 
 export default function SettingsPage() {
   const [exportData, setExportData] = useState<any | null>(null);
@@ -19,6 +20,7 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-dvh flex flex-col">
+      <TopBar />
       <main className="flex-1 p-4 space-y-4 max-w-md mx-auto w-full">
         <h1 className="text-xl font-semibold">Settings</h1>
         <div className="rounded-md border p-3 space-y-2">

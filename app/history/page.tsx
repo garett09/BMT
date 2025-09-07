@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { TransactionRecord } from "@/lib/redis";
 import { BottomNav } from "@/components/ui/BottomNav";
+import { TopBar } from "@/components/ui/TopBar";
 import { ListCard } from "@/components/ui/ListCard";
 import { Chip } from "@/components/ui/Chip";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
@@ -83,6 +84,7 @@ export default function HistoryPage() {
   return (
     <PullToRefresh onRefresh={load}>
     <div className="min-h-dvh flex flex-col">
+      <TopBar />
       <main className="flex-1 p-4 space-y-4 max-w-md mx-auto w-full">
         <h1 className="text-xl font-semibold">History</h1>
 

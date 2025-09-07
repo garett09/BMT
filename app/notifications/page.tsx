@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { TopBar } from "@/components/ui/TopBar";
 
 type Notification = { id: string; type: "budget" | "spend" | "savings" | "insight"; message: string; priority: 1 | 2 | 3; createdAt: string; read?: boolean };
 
@@ -19,6 +20,7 @@ export default function NotificationsPage() {
 
   return (
     <div className="min-h-dvh flex flex-col">
+      <TopBar />
       <main className="flex-1 p-4 space-y-4 max-w-md mx-auto w-full">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-semibold">Notifications</h1>
