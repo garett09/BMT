@@ -16,6 +16,7 @@ type RecurringTemplate = {
   accountId?: string;
   frequency: "daily" | "weekly" | "monthly" | "weekday" | "15th";
   lastRun?: string;
+  snoozeUntil?: string;
 };
 
 export default function RecurringPage() {
@@ -41,6 +42,13 @@ export default function RecurringPage() {
     const res = await fetch("/api/recurring/run", { method: "POST", credentials: "include" });
     if (res.ok) { const d = await res.json(); push({ title: `Posted ${d.posted} entries`, type: "success" }); load(); }
     else push({ title: "Run failed", type: "error" });
+  };
+
+  const snooze = async (id: string, days: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    await fetch("/api/recurring", { method: "PUT", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ id, snoozeUntil: d.toISOString().slice(0,10) }) });
+    load();
   };
 
   const calendar = useMemo(() => {
@@ -88,7 +96,11 @@ export default function RecurringPage() {
               <div key={r.id} className="rounded-md border card p-3 flex items-center justify-between">
                 <div>
                   <div className="text-sm font-medium">{r.type} • {r.category} {r.subcategory ? `• ${r.subcategory}` : ""}</div>
-                  <div className="text-xs text-[var(--muted)]">₱{r.amount.toLocaleString()} • {r.frequency} {r.lastRun ? `• last ${r.lastRun}` : ""}</div>
+                  <div className="text-xs text-[var(--muted)]">₱{r.amount.toLocaleString()} • {r.frequency} {r.lastRun ? `• last ${r.lastRun}` : ""} {r.snoozeUntil ? `• snoozed to ${r.snoozeUntil}` : ""}</div>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="secondary" onClick={()=> snooze(r.id, 1)}>Snooze 1d</Button>
+                  <Button variant="secondary" onClick={()=> snooze(r.id, 7)}>Snooze 1w</Button>
                 </div>
               </div>
             ))}
