@@ -184,6 +184,16 @@ export default function TransactionsPage() {
     return [...score.entries()].sort((a,b)=> b[1]-a[1]).slice(0,5).map(([c])=> c);
   }, [txs, form.type]);
 
+  const lastAmountForCategory = useMemo(() => {
+    for (const t of txs) {
+      if (t.type === form.type && t.category === form.category) return t.amount;
+    }
+    return null as number | null;
+  }, [txs, form.type, form.category]);
+
+  const selectedAccount = useMemo(() => accounts.find((a)=> a.id === form.accountId) || null, [accounts, form.accountId]);
+  const available = Number(selectedAccount?.balance || 0);
+
   const buildCategoryGroups = useMemo(() => {
     const toOptions = (names: string[]) => names
       .filter((n) => (form.type === "income" ? incomeCategories : expenseCategories).some((c) => c.name === n))
@@ -246,7 +256,16 @@ export default function TransactionsPage() {
                 {quickAmounts.map((q) => (
                   <button key={q} type="button" className="text-xs border rounded-full px-3 py-1 hover:bg-white/5" onClick={() => setForm({ ...form, amount: String(Number(form.amount || 0) + q) })}>+{q.toLocaleString()}</button>
                 ))}
+                {lastAmountForCategory !== null && (
+                  <button type="button" className="text-xs border rounded-full px-3 py-1 hover:bg-white/5" onClick={() => setForm({ ...form, amount: String(lastAmountForCategory) })}>Use last ₱{lastAmountForCategory.toLocaleString()}</button>
+                )}
+                {form.type === "expense" && selectedAccount && available > 0 && (
+                  <button type="button" className="text-xs border rounded-full px-3 py-1 hover:bg-white/5" onClick={() => setForm({ ...form, amount: String(available) })}>Max</button>
+                )}
               </div>
+              {selectedAccount && (
+                <div className="col-span-2 text-[10px] text-[var(--muted)]">Available in {selectedAccount.name}: ₱{available.toLocaleString()}</div>
+              )}
               <SearchableSelect
                 className="col-span-2"
                 groups={buildCategoryGroups}
@@ -344,6 +363,9 @@ export default function TransactionsPage() {
                   sub={<InlineBar value={Math.min(100, t.amount)} max={100} color={t.type === "income" ? "#22c55e" : "#ef4444"} />}
                   right={<div className="flex items-center gap-2"><div className={t.type === "income" ? "text-[var(--positive)]" : "text-[var(--negative)]"}>₱{t.amount.toLocaleString()}</div></div>}
                 />
+                {(!swipe || swipe.id!==t.id || swipe.dx===0) && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-[var(--muted)]">Swipe ←</div>
+                )}
               </div>
             </div>
           ))
