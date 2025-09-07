@@ -24,6 +24,8 @@ import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { RadialProgress } from "@/components/ui/RadialProgress";
 import { trackEvent } from "@/lib/analyticsClient";
 import { Envelopes } from "@/components/Envelopes";
+import { Coachmark } from "@/components/ui/Coachmark";
+import { Nudges } from "@/components/Nudges";
 
 export function EnhancedDashboard() {
   const [txs, setTxs] = useState<TransactionRecord[]>([]);
@@ -360,6 +362,8 @@ export function EnhancedDashboard() {
           <KpiCard label="Burn Rate" value={`${Math.round(monthTx.burnRate*100)}%`} tone={monthTx.burnRate <= 1 ? "pos" : "neg"} />
           <KpiCard label="Top Cat Share" value={`${Math.round(monthTx.topCategoryShare*100)}%`} />
         </div>
+
+        <Nudges totalExpense={analytics.totalExpense} targetBudget={monthTx.targetBudget} netWorth={netWorth} />
         <div className="grid grid-cols-3 gap-3">
           <KpiCard label="Spend Volatility" value={`${(spendVolatility).toFixed(2)}`} />
           <KpiCard label="Income Stability" value={`${Math.round(incomeStability*100)}%`} tone={incomeStability >= 0.6 ? "pos" : "neg"} />
