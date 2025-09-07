@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getUserIdFromAuth } from "@/lib/server-auth";
 import { withSecurityHeaders, applyCors } from "@/lib/security";
 import { getRedis } from "@/lib/redis";
 
 export const runtime = "nodejs";
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  const userId = (session?.user as any)?.id as string | undefined;
+  const userId = await getUserIdFromAuth(req);
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   let redisOk = false;
   let error: string | undefined;
