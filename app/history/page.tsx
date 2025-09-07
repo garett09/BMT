@@ -11,6 +11,7 @@ import { Segmented } from "@/components/ui/Segmented";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import type { SelectGroup } from "@/components/ui/SearchableSelect";
 import { incomeCategories, expenseCategories } from "@/components/constants";
+import { FilterSheet } from "@/components/ui/FilterSheet";
 
 export default function HistoryPage() {
   const [txs, setTxs] = useState<TransactionRecord[]>([]);
@@ -86,7 +87,15 @@ export default function HistoryPage() {
     <div className="min-h-dvh flex flex-col">
       <TopBar />
       <main className="flex-1 p-4 space-y-4 max-w-md mx-auto w-full">
-        <h1 className="text-xl font-semibold">History</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-semibold">History</h1>
+          <FilterSheet id="history" onApply={()=> setVisible(30)}>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="col-span-2"><Segmented value={filter} onChange={(v)=> setFilter(v as any)} options={["all","income","expense"]} /></div>
+              <input className="border rounded-md px-3 py-2" type="month" value={month} onChange={(e)=> setMonth(e.target.value)} />
+            </div>
+          </FilterSheet>
+        </div>
 
         <div className="col-span-2"><Segmented value={filter} onChange={(v)=>{ setFilter(v as "all"|"income"|"expense"); setVisible(30); }} options={["all","income","expense"]} /></div>
 

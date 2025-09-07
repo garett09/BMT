@@ -15,6 +15,7 @@ import { useToast } from "@/components/ui/Toast";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { ListSkeleton } from "@/components/ui/ListSkeleton";
 import { Card, CardContent } from "@/components/ui/Card";
+import { FilterSheet } from "@/components/ui/FilterSheet";
 
 type Tx = {
   id: string;
@@ -211,7 +212,15 @@ export default function TransactionsPage() {
     <div className="min-h-dvh flex flex-col">
       <TopBar />
       <main className="flex-1 p-4 space-y-4 max-w-md mx-auto w-full">
-        <h1 className="text-xl font-semibold">Transactions</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-semibold">Transactions</h1>
+          <FilterSheet id="tx" onApply={()=> fetchTxs()}>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="col-span-2"><Segmented value={form.type} onChange={(v)=> setForm((f)=> ({ ...f, type: v as any }))} options={["income","expense"]} /></div>
+              <input className="border rounded-md px-3 py-2 col-span-2" placeholder="Search" onChange={(e)=> {/* handled by page search in future */}} />
+            </div>
+          </FilterSheet>
+        </div>
         <Card className="card">
           <div className="px-3 pt-3">
             <div className="text-xs text-[var(--muted)]">Quick Add</div>
