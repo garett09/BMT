@@ -67,7 +67,22 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  return POST(req);
+  const userId = await getUserIdFromAuth(req);
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const rl = await rateLimit(req, "recurring:write", 30, 60);
+  const base = withSecurityHeaders(NextResponse.next());
+  Object.entries(rl.headers).forEach(([k, v]) => base.headers.set(k, v));
+  if (rl.limited) return NextResponse.json({ error: "Rate limit" }, { status: 429, headers: base.headers });
+  const body = await req.json();
+  const dp = new DataPersistence<RecurringTemplate[]>(userId, "recurring");
+  const list = (await dp.get())?.value || [];
+  const id = String(body?.id || "");
+  if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+  const idx = list.findIndex((r) => r.id === id);
+  if (idx < 0) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  list[idx] = { ...list[idx], ...body } as RecurringTemplate;
+  await dp.set(list);
+  return applyCors(req, withSecurityHeaders(NextResponse.json(list[idx])));
 }
 
 export async function DELETE(req: NextRequest) {
