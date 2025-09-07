@@ -30,16 +30,17 @@ type Tx = {
   recurring?: boolean;
 };
 
-type FormState = { type: "income" | "expense"; amount: string; category: string; subcategory?: string; date: string; classification: string; accountId: string; recurring?: boolean };
+type FormState = { type: "income" | "expense"; amount: string; category: string; subcategory?: string; date: string; classification: string; description?: string; accountId: string; recurring?: boolean };
 
 export default function TransactionsPage() {
   const { push } = useToast();
   const [txs, setTxs] = useState<Tx[]>([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState<FormState>({ type: "expense", amount: "", category: expenseCategories[0].name, subcategory: "", date: new Date().toISOString().slice(0,10), classification: "", accountId: "", recurring: false });
+  const [form, setForm] = useState<FormState>({ type: "expense", amount: "", category: expenseCategories[0].name, subcategory: "", date: new Date().toISOString().slice(0,10), classification: "", description: "", accountId: "", recurring: false });
+  const [recurringFreq, setRecurringFreq] = useState<""|"daily"|"weekly"|"monthly"|"weekday"|"15th">("");
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState<(FormState & { id: string }) | null>(null);
-  const [accounts, setAccounts] = useState<{ id: string; name: string; provider?: string }[]>([]);
+  const [accounts, setAccounts] = useState<{ id: string; name: string; provider?: string; balance?: number }[]>([]);
   const amountRef = useRef<HTMLInputElement>(null);
   const [submitting, setSubmitting] = useState(false);
   const longPressRef = useRef<number | null>(null);
@@ -100,8 +101,13 @@ export default function TransactionsPage() {
       if (res.ok) {
         // remember last used fields for speed next time
         try { localStorage.setItem("bmt:lastUsedTxn", JSON.stringify({ type: form.type, category: form.category, subcategory: form.subcategory, accountId: form.accountId, recurring: form.recurring })); } catch {}
-        // reset only amount and date; keep user context
-        setForm((f) => ({ ...f, amount: "", date: new Date().toISOString().slice(0,10) }));
+        // optionally create a recurring template
+        if (form.recurring && recurringFreq) {
+          const tpl = { id: `tpl-${Date.now()}`, type: form.type, amount: Number(form.amount || 0), category: form.category, subcategory: form.subcategory || undefined, accountId: form.accountId || undefined, frequency: recurringFreq };
+          await fetch("/api/recurring", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(tpl) });
+        }
+        // reset only amount, description and date; keep user context
+        setForm((f) => ({ ...f, amount: "", description: "", date: new Date().toISOString().slice(0,10) }));
         push({ title: "Transaction added", type: "success" });
         fetchTxs();
         amountRef.current?.focus();
@@ -277,6 +283,7 @@ export default function TransactionsPage() {
                 placeholder="Subcategory"
               />
               <input className="border rounded-md px-3 py-2 col-span-2" placeholder="Classification (e.g., Recurring, Fixed, Variable)" value={form.classification} onChange={(e) => setForm({ ...form, classification: e.target.value })} />
+              <input className="border rounded-md px-3 py-2 col-span-2" placeholder="Notes (optional)" value={form.description || ""} onChange={(e) => setForm({ ...form, description: e.target.value })} />
               <SearchableSelect
                 className="col-span-2"
                 options={[{ value: "", label: "No Account" }, ...accounts.map((a) => ({ value: a.id, label: `${a.name}${a.provider ? " • " + a.provider : ""}` }))]}
@@ -285,6 +292,16 @@ export default function TransactionsPage() {
                 placeholder="Select Account (optional)"
               />
               <label className="text-xs flex items-center gap-2 col-span-2"><input type="checkbox" checked={!!form.recurring} onChange={(e) => setForm({ ...form, recurring: e.target.checked })} /> Recurring</label>
+              {form.recurring && (
+                <select className="border rounded-md px-3 py-2 col-span-2" value={recurringFreq} onChange={(e)=> setRecurringFreq(e.target.value as any)}>
+                  <option value="">Frequency</option>
+                  <option value="daily">Daily</option>
+                  <option value="weekday">Weekdays</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="15th">Mid-month (15th)</option>
+                </select>
+              )}
               <input className="border rounded-md px-3 py-2 col-span-2" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} onFocus={openNativePicker} onClick={openNativePicker} />
               {!isValid && <div className="col-span-2 text-[10px] text-[var(--negative)]">Enter a valid amount and pick a category.</div>}
               <Button type="submit" fullWidth className="col-span-2" disabled={!isValid || submitting} aria-busy={submitting}>{submitting ? "Saving..." : "Quick Add"}</Button>
