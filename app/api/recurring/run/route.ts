@@ -10,6 +10,7 @@ export const runtime = "nodejs";
 
 function isDue(t: RecurringTemplate, today: Date): boolean {
   const last = t.lastRun ? new Date(t.lastRun) : null;
+  if (t.snoozeUntil && new Date(t.snoozeUntil) > today) return false;
   const y = today.getFullYear();
   const m = today.getMonth();
   const d = today.getDate();
