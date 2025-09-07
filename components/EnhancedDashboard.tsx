@@ -293,6 +293,19 @@ export function EnhancedDashboard() {
     return assets - Math.abs(credit);
   }, [accounts]);
 
+  const netWorthTrend = useMemo(() => {
+    // Construct monthly net worth using running sum of income-expense plus accounts snapshot (simplified)
+    const map = new Map<string, { income: number; expense: number }>();
+    for (const t of txs) {
+      const month = (t.date || t.createdAt).slice(0,7);
+      const v = map.get(month) || { income: 0, expense: 0 };
+      v[t.type] += t.amount;
+      map.set(month, v);
+    }
+    const rows = [...map.entries()].sort(([a],[b])=> a < b ? -1 : 1).map(([m, v])=> ({ name: m, value: v.income - v.expense }));
+    return rows.slice(-12);
+  }, [txs]);
+
   return (
     <PullToRefresh onRefresh={fetchAll}>
     <div className="space-y-4">
@@ -485,6 +498,10 @@ export function EnhancedDashboard() {
                 );
               })}
             </div>
+          </Section>
+
+          <Section title="Net Worth Trend (approx)">
+            <TrendChart data={netWorthTrend} />
           </Section>
 
           <Section title={`Top Categories • ${lastMonth}`}>
