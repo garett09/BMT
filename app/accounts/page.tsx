@@ -107,7 +107,14 @@ export default function AccountsPage() {
           {loading ? (
             <ListSkeleton />
           ) : filtered.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No accounts yet.</p>
+            <div className="rounded-md border card p-4 text-sm">
+              <div className="font-medium mb-1">No accounts yet</div>
+              <div className="text-[var(--muted)] mb-2">Add your first account to track balances and enable transfers.</div>
+              <div className="flex gap-2">
+                <Button onClick={()=> { setForm({ id: "", name: "", type: "cash", balance: 0, provider: "", subtype: "savings" }); setOpen(true); setTimeout(()=>nameRef.current?.focus(), 0); }}>Add Account</Button>
+                <Button variant="secondary" href="/transactions">Add a transaction →</Button>
+              </div>
+            </div>
           ) : (
             filtered.map((a) => {
               const low = Number(a.balance) <= 500;

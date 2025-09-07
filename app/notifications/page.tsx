@@ -26,7 +26,10 @@ export default function NotificationsPage() {
         </div>
         <div className="space-y-2">
           {list.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No notifications.</p>
+            <div className="rounded-md border card p-4 text-sm">
+              <div className="font-medium mb-1">Inbox is clear</div>
+              <div className="text-[var(--muted)]">You'll see alerts here for budgets, goals and spending insights.</div>
+            </div>
           ) : (
             list.map((n) => (
               <div key={n.id} className="border rounded-md p-3">

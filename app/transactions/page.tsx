@@ -285,7 +285,11 @@ export default function TransactionsPage() {
         {loading ? (
           <ListSkeleton />
         ) : txs.length === 0 ? (
-          <div className="rounded-md border card p-4 text-center text-sm text-[var(--muted)]">No transactions yet. Add your first one above.</div>
+          <div className="rounded-md border card p-4 text-sm">
+            <div className="font-medium mb-1">No transactions yet</div>
+            <div className="text-[var(--muted)] mb-2">Use Quick Add above to record income or expenses. You can set recurring rules on the Recurring page.</div>
+            <div className="flex gap-2"><Button variant="secondary" href="/recurring">Set recurring →</Button><Button variant="secondary" href="/accounts">Add an account →</Button></div>
+          </div>
         ) : (
           txs.map((t) => (
             <div

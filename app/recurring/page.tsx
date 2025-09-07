@@ -75,7 +75,11 @@ export default function RecurringPage() {
         {loading ? (
           <ListSkeleton />
         ) : list.length === 0 ? (
-          <div className="rounded-md border card p-4 text-center text-sm text-[var(--muted)]">No recurring templates yet.</div>
+          <div className="rounded-md border card p-4 text-sm">
+            <div className="font-medium mb-1">No recurring templates</div>
+            <div className="text-[var(--muted)] mb-2">Create templates to automatically post bills and income on schedule. Use the Transactions page to mark items as recurring when adding.</div>
+            <Button variant="secondary" href="/transactions">Add a recurring transaction →</Button>
+          </div>
         ) : (
           <div className="space-y-2">
             {list.map((r) => (
