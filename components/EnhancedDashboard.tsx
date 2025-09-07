@@ -311,6 +311,7 @@ export function EnhancedDashboard() {
   return (
     <PullToRefresh onRefresh={fetchAll}>
     <div className="space-y-4">
+      <Coachmark id="donut-tip" title="Tap donut slices" text="Tap a category slice to filter trends and insights. Tap Clear to reset." />
       {showOnboarding && (
         <div className="rounded-md border card p-3">
           <div className="text-sm font-medium">Welcome! Let’s set things up</div>

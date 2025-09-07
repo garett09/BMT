@@ -5,6 +5,7 @@ import { TopBar } from "@/components/ui/TopBar";
 import { Button } from "@/components/ui/Button";
 import { ListSkeleton } from "@/components/ui/ListSkeleton";
 import { useToast } from "@/components/ui/Toast";
+import { Coachmark } from "@/components/ui/Coachmark";
 
 type RecurringTemplate = {
   id: string;
@@ -67,6 +68,7 @@ export default function RecurringPage() {
     <div className="min-h-dvh flex flex-col">
       <TopBar />
       <main className="flex-1 p-4 space-y-4 max-w-md mx-auto w-full">
+        <Coachmark id="recurring-tip" title="Recurring timeline" text="Use Run Now to post due bills. Tap a day in the calendar to preview what's coming." />
         <h1 className="text-xl font-semibold">Recurring</h1>
         <div className="rounded-md border card p-3 flex items-center justify-between">
           <div className="text-sm">Due today: <span className="font-medium">{due.length}</span></div>
