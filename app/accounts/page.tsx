@@ -28,6 +28,8 @@ export default function AccountsPage() {
   const [filter, setFilter] = useState<"all" | "cash" | "bank" | "credit" | "other">("all");
   const [transferOpen, setTransferOpen] = useState(false);
   const [transfer, setTransfer] = useState<{ fromId: string; toId: string; amount: string }>({ fromId: "", toId: "", amount: "" });
+  const fromBalance = (()=> { const f = list.find(a=> a.id===transfer.fromId); return Number(f?.balance||0); })();
+  const isTransferValid = transfer.fromId && transfer.toId && transfer.fromId!==transfer.toId && Number(transfer.amount)>0 && Number(transfer.amount) <= fromBalance;
 
   const load = async () => {
     setLoading(true);
@@ -204,7 +206,7 @@ export default function AccountsPage() {
       <Modal open={transferOpen} onClose={() => setTransferOpen(false)} title="Transfer Between Accounts">
         <Card className="card">
           <CardContent>
-            <form onSubmit={async (e)=>{ e.preventDefault(); const amt = Number(transfer.amount || 0); if (!transfer.fromId || !transfer.toId || transfer.fromId===transfer.toId || !(amt>0)) { push({ title: "Invalid transfer", type: "error" }); return; } const from = list.find(a=> a.id===transfer.fromId); const to = list.find(a=> a.id===transfer.toId); if (!from || !to) { push({ title: "Invalid accounts", type: "error" }); return; } const updatedFrom: any = { ...from, balance: Number(from.balance) - amt }; const updatedTo: any = { ...to, balance: Number(to.balance) + amt }; const saveOne = async (acc: any) => fetch("/api/accounts", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(acc) }); const r1 = await saveOne(updatedFrom); const r2 = await saveOne(updatedTo); if (r1.ok && r2.ok) { push({ title: "Transfer complete", type: "success" }); setTransferOpen(false); load(); } else { push({ title: "Transfer failed", type: "error" }); } }} className="grid grid-cols-2 gap-2">
+            <form onSubmit={async (e)=>{ e.preventDefault(); const amt = Number(transfer.amount || 0); if (!isTransferValid) { push({ title: "Invalid transfer", type: "error" }); return; } const from = list.find(a=> a.id===transfer.fromId)!; const to = list.find(a=> a.id===transfer.toId)!; const updatedFrom: any = { ...from, balance: Number(from.balance) - amt }; const updatedTo: any = { ...to, balance: Number(to.balance) + amt }; const saveOne = async (acc: any) => fetch("/api/accounts", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(acc) }); const r1 = await saveOne(updatedFrom); const r2 = await saveOne(updatedTo); if (r1.ok && r2.ok) { push({ title: "Transfer complete", type: "success" }); setTransferOpen(false); load(); } else { push({ title: "Transfer failed", type: "error" }); } }} className="grid grid-cols-2 gap-2">
               <select className="border rounded-md px-3 py-2" value={transfer.fromId} onChange={(e)=> setTransfer({ ...transfer, fromId: e.target.value })}>
                 <option value="">From account</option>
                 {list.map((a)=> (<option key={a.id} value={a.id}>{a.name}</option>))}
@@ -214,16 +216,18 @@ export default function AccountsPage() {
                 {list.filter(a=> a.id!==transfer.fromId).map((a)=> (<option key={a.id} value={a.id}>{a.name}</option>))}
               </select>
               <div className="col-span-2 space-y-2">
-                <input className="border rounded-md px-3 py-2 w-full" inputMode="decimal" step="0.01" min="0" type="number" placeholder="Amount" value={transfer.amount} onChange={(e)=> setTransfer({ ...transfer, amount: e.target.value })} />
+                <div className="text-xs text-[var(--muted)]">Available: ₱{fromBalance.toLocaleString()}</div>
+                <input className="border rounded-md px-3 py-2 w-full" inputMode="decimal" step="0.01" min="0" max={fromBalance} type="number" placeholder="Amount" value={transfer.amount} onChange={(e)=> setTransfer({ ...transfer, amount: e.target.value })} />
                 <div className="flex gap-2 overflow-x-auto">
                   {[500,1000,5000,10000].map((n)=> (
-                    <button key={n} type="button" className="text-[10px] border rounded-full px-2.5 py-1 text-[var(--muted)] hover:text-[var(--foreground)]" onClick={()=> setTransfer((t)=> ({ ...t, amount: String(Number(t.amount||0) + n) }))}>+₱{n.toLocaleString()}</button>
+                    <button key={n} type="button" className="text-[10px] border rounded-full px-2.5 py-1 text-[var(--muted)] hover:text-[var(--foreground)]" onClick={()=> setTransfer((t)=> ({ ...t, amount: String(Math.min(fromBalance, Number(t.amount||0) + n)) }))}>+₱{n.toLocaleString()}</button>
                   ))}
+                  <button type="button" className="text-[10px] border rounded-full px-2.5 py-1 text-[var(--muted)] hover:text-[var(--foreground)]" onClick={()=> setTransfer((t)=> ({ ...t, amount: String(fromBalance) }))}>Max</button>
                 </div>
               </div>
               <div className="col-span-2 flex gap-2">
                 <Button type="button" variant="secondary" className="flex-1" fullWidth onClick={()=> setTransferOpen(false)}>Cancel</Button>
-                <Button type="submit" className="flex-1" fullWidth>Transfer</Button>
+                <Button type="submit" className="flex-1" fullWidth disabled={!isTransferValid}>Transfer</Button>
               </div>
             </form>
           </CardContent>
