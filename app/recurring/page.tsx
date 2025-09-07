@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BottomNav } from "@/components/ui/BottomNav";
 import { TopBar } from "@/components/ui/TopBar";
 import { Button } from "@/components/ui/Button";
@@ -42,6 +42,27 @@ export default function RecurringPage() {
     else push({ title: "Run failed", type: "error" });
   };
 
+  const calendar = useMemo(() => {
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = today.getMonth();
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    const rows: Array<{ day: number; due: RecurringTemplate[] }> = [];
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date = new Date(y, m, d);
+      const items = list.filter((r) => {
+        if (r.frequency === "daily") return true;
+        if (r.frequency === "weekday") return date.getDay() >= 1 && date.getDay() <= 5;
+        if (r.frequency === "weekly") return date.getDay() === 1; // show Mondays
+        if (r.frequency === "monthly") return d === 1;
+        if (r.frequency === "15th") return d === 15;
+        return false;
+      });
+      rows.push({ day: d, due: items });
+    }
+    return rows;
+  }, [list]);
+
   return (
     <div className="min-h-dvh flex flex-col">
       <TopBar />
@@ -65,6 +86,24 @@ export default function RecurringPage() {
                 </div>
               </div>
             ))}
+            <div className="rounded-md border card p-3">
+              <div className="text-sm font-medium mb-2">This Month</div>
+              <div className="grid grid-cols-7 gap-2 text-xs">
+                {calendar.map((c) => (
+                  <div key={c.day} className="min-h-14 rounded-md border p-1">
+                    <div className="text-[10px] text-[var(--muted)]">{c.day}</div>
+                    <div className="space-y-1">
+                      {c.due.slice(0,2).map((r, idx) => (
+                        <div key={`${c.day}-${idx}`} className="truncate rounded bg-[var(--card)] px-1 py-0.5 border">{r.type} • {r.category}</div>
+                      ))}
+                      {c.due.length > 2 && (
+                        <div className="text-[10px] text-[var(--muted)]">+{c.due.length - 2} more</div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
       </main>
