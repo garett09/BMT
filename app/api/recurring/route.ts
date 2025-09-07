@@ -16,6 +16,7 @@ export type RecurringTemplate = {
   accountId?: string;
   frequency: "daily" | "weekly" | "monthly" | "weekday" | "15th";
   lastRun?: string; // ISO date
+  snoozeUntil?: string; // ISO date (if set, ignore until this date passes)
 };
 
 const RecurringSchema = z.object({
@@ -27,6 +28,7 @@ const RecurringSchema = z.object({
   accountId: z.string().optional(),
   frequency: z.enum(["daily", "weekly", "monthly", "weekday", "15th"]),
   lastRun: z.string().optional(),
+  snoozeUntil: z.string().optional(),
 });
 
 export async function OPTIONS(req: NextRequest) {
