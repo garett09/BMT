@@ -23,6 +23,7 @@ import { PullToRefresh } from "@/components/ui/PullToRefresh";
 // removed Accounts tab content; keep imports minimal
 import { RadialProgress } from "@/components/ui/RadialProgress";
 import { trackEvent } from "@/lib/analyticsClient";
+import { Envelopes } from "@/components/Envelopes";
 
 export function EnhancedDashboard() {
   const [txs, setTxs] = useState<TransactionRecord[]>([]);
@@ -428,6 +429,9 @@ export function EnhancedDashboard() {
             <KpiCard label="Spent" value={`₱${analytics.totalExpense.toLocaleString()}`} tone="neg" />
             <KpiCard label="Projected Balance" value={`₱${(analytics.totalIncome - (analytics.totalExpense + analytics.spendingVelocity * Math.max(0, 30 - new Date().getDate()))).toLocaleString()}`} tone={(analytics.totalIncome - (analytics.totalExpense + analytics.spendingVelocity * Math.max(0, 30 - new Date().getDate()))) >= 0 ? "pos" : "neg"} />
           </div>
+          <Section title="Envelopes">
+            <Envelopes monthISO={monthISO} txs={txs} />
+          </Section>
         </div>
       )}
 
