@@ -22,11 +22,16 @@ import { ListSkeleton } from "@/components/ui/ListSkeleton";
 import { PullToRefresh } from "@/components/ui/PullToRefresh";
 // removed Accounts tab content; keep imports minimal
 import { RadialProgress } from "@/components/ui/RadialProgress";
+import { trackEvent } from "@/lib/analyticsClient";
 
 export function EnhancedDashboard() {
   const [txs, setTxs] = useState<TransactionRecord[]>([]);
   const [loading, setLoading] = useState(true);
   // accounts are handled in dedicated page
+  const [accounts, setAccounts] = useState<Array<{ id: string; type: "cash"|"bank"|"credit"|"other"; balance: number }>>([]);
+  // onboarding
+  const [onboarding, setOnboarding] = useState<{ completed: boolean; steps?: Record<string, boolean> } | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [budgetOpen, setBudgetOpen] = useState(false);
   const [savingsOpen, setSavingsOpen] = useState(false);
   const [budget, setBudget] = useState<string>("");
@@ -35,16 +40,26 @@ export function EnhancedDashboard() {
   type SavingsGoal = { id: string; name: string; targetAmount: number; currentAmount: number; dueDate?: string };
   const [goals, setGoals] = useState<SavingsGoal[]>([]);
   const [confetti, setConfetti] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [tab, setTab] = useState("Overview");
 
   const fetchAll = async () => {
     setLoading(true);
     const res = await fetch("/api/transactions", { cache: "no-store", credentials: "include" });
     if (res.ok) setTxs(await res.json());
     // accounts fetched in dedicated Accounts page
+    const acc = await fetch("/api/accounts", { cache: "no-store", credentials: "include" });
+    if (acc.ok) setAccounts(await acc.json());
     const mb = await fetch(`/api/budget?month=${monthISO}`, { cache: "no-store", credentials: "include" });
     if (mb.ok) { const d = await mb.json(); setMonthBudget(typeof d.amount === "number" ? d.amount : null); }
     const sg = await fetch("/api/savings", { cache: "no-store", credentials: "include" });
     if (sg.ok) setGoals(await sg.json());
+    const ob = await fetch("/api/onboarding", { cache: "no-store", credentials: "include" });
+    if (ob.ok) {
+      const state = await ob.json();
+      setOnboarding(state);
+      setShowOnboarding(!state.completed);
+    }
     setLoading(false);
   };
 
@@ -65,6 +80,7 @@ export function EnhancedDashboard() {
     // simple 7-day trend from tx dates
     const map = new Map<string, number>();
     for (const t of txs) {
+      if (selectedCategory && t.category.toLowerCase() !== selectedCategory.toLowerCase()) continue;
       const key = (t.date || t.createdAt).slice(5, 10);
       map.set(key, (map.get(key) || 0) + (t.type === "expense" ? t.amount : 0));
     }
@@ -93,92 +109,13 @@ export function EnhancedDashboard() {
       .sort(([a], [b]) => (a < b ? -1 : 1))
       .slice(-8)
       .map(([name, value]) => ({ name, value }));
-  }, [txs]);
-
-  const [tab, setTab] = useState("Overview");
-
-  // Data-heavy derived metrics for data folks
-  const monthTx = useMemo(() => {
-    const m = monthISO;
-    const expenses = txs.filter((t) => t.type === "expense" && (t.date || "").startsWith(m));
-    const incomes = txs.filter((t) => t.type === "income" && (t.date || "").startsWith(m));
-    const totalExpense = expenses.reduce((s, t) => s + t.amount, 0);
-    const totalIncome = incomes.reduce((s, t) => s + t.amount, 0);
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = today.getMonth();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const dayOfMonth = today.getDate();
-    const avgDailySpend = totalExpense / Math.max(1, dayOfMonth);
-    const targetBudget = monthBudget ?? forecast.recommendedBudget;
-    const burnRate = targetBudget > 0 ? totalExpense / targetBudget : 0;
-    const byCat = expenses.reduce((map: Record<string, number>, t) => { map[t.category] = (map[t.category] || 0) + t.amount; return map; }, {} as Record<string, number>);
-    const top = Object.entries(byCat).sort((a,b)=>b[1]-a[1])[0];
-    const topCategoryShare = top ? top[1] / Math.max(1, totalExpense) : 0;
-    return { totalExpense, totalIncome, avgDailySpend, burnRate, topCategory: top?.[0] || "-", topCategoryShare, daysInMonth, dayOfMonth, targetBudget };
-  }, [txs, monthISO, forecast.recommendedBudget, monthBudget]);
-
-  const spendVolatility = useMemo(() => {
-    // Coefficient of variation of daily expenses in last 30 days
-    const byDay = new Map<string, number>();
-    const now = new Date();
-    for (const t of txs) {
-      if (t.type !== "expense") continue;
-      const d = new Date(t.date || t.createdAt);
-      if ((now.getTime() - d.getTime()) / (24*3600*1000) > 30) continue;
-      const key = (t.date || t.createdAt).slice(0,10);
-      byDay.set(key, (byDay.get(key) || 0) + t.amount);
-    }
-    if (byDay.size === 0) return 0;
-    const values = [...byDay.values()];
-    const mean = values.reduce((s,v)=>s+v,0) / values.length;
-    const variance = values.reduce((s,v)=> s + Math.pow(v - mean, 2), 0) / values.length;
-    const std = Math.sqrt(variance);
-    const cv = std / Math.max(1e-6, mean);
-    return cv; // lower is more stable
-  }, [txs]);
-
-  const incomeStability = useMemo(() => {
-    // Stability of monthly income totals over last 6 months: 1 - CV
-    const buckets = new Map<string, number>();
-    for (const t of txs) {
-      if (t.type !== "income") continue;
-      const key = (t.date || t.createdAt).slice(0,7);
-      buckets.set(key, (buckets.get(key) || 0) + t.amount);
-    }
-    const months = [...buckets.entries()].sort(([a],[b])=> a < b ? -1 : 1).slice(-6).map(([,v])=>v);
-    if (months.length === 0) return 0;
-    const mean = months.reduce((s,v)=>s+v,0) / months.length;
-    const variance = months.reduce((s,v)=> s + Math.pow(v - mean, 2), 0) / months.length;
-    const std = Math.sqrt(variance);
-    const cv = std / Math.max(1e-6, mean);
-    const stability = Math.max(0, Math.min(1, 1 - cv));
-    return stability; // 0..1 (higher is more stable)
-  }, [txs]);
-
-  const weeklyIncomeExpense = useMemo(() => {
-    // map ISO week to { income, expense }
-    const map = new Map<string, { income: number; expense: number }>();
-    for (const t of txs) {
-      const d = new Date(t.date || t.createdAt);
-      const tmp = new Date(d.getTime());
-      const dayNum = (d.getUTCDay() + 6) % 7; // Monday=0
-      tmp.setUTCDate(d.getUTCDate() - dayNum + 3);
-      const firstThursday = tmp.getTime();
-      const jan4 = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 4));
-      const week = 1 + Math.round((firstThursday - Date.UTC(jan4.getUTCFullYear(), 0, 4)) / (7 * 24 * 3600 * 1000));
-      const key = `${tmp.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
-      const curr = map.get(key) || { income: 0, expense: 0 };
-      curr[t.type] += t.amount as number;
-      map.set(key, curr);
-    }
-    return [...map.entries()].sort(([a],[b])=> a < b ? -1 : 1).slice(-8).map(([name, v])=> ({ name, income: v.income, expense: v.expense }));
-  }, [txs]);
+  }, [txs, selectedCategory]);
 
   // Monthly summaries for Historical/Predictions
   const monthlySummary = useMemo(() => {
     const map = new Map<string, { income: number; expense: number }>();
     for (const t of txs) {
+      if (selectedCategory && t.category.toLowerCase() !== selectedCategory.toLowerCase()) continue;
       const key = (t.date || t.createdAt).slice(0, 7);
       const curr = map.get(key) || { income: 0, expense: 0 };
       curr[t.type] += t.amount as number;
@@ -266,13 +203,113 @@ export function EnhancedDashboard() {
     return { target, current, pct };
   }, [goal]);
 
+  // Month KPIs
+  const monthTx = useMemo(() => {
+    const m = monthISO;
+    const expenses = txs.filter((t) => t.type === "expense" && (t.date || "").startsWith(m));
+    const incomes = txs.filter((t) => t.type === "income" && (t.date || "").startsWith(m));
+    const totalExpense = expenses.reduce((s, t) => s + t.amount, 0);
+    const totalIncome = incomes.reduce((s, t) => s + t.amount, 0);
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const dayOfMonth = today.getDate();
+    const avgDailySpend = totalExpense / Math.max(1, dayOfMonth);
+    const targetBudget = monthBudget ?? forecast.recommendedBudget;
+    const burnRate = targetBudget > 0 ? totalExpense / targetBudget : 0;
+    const byCat = expenses.reduce((map: Record<string, number>, t) => { map[t.category] = (map[t.category] || 0) + t.amount; return map; }, {} as Record<string, number>);
+    const top = Object.entries(byCat).sort((a,b)=>b[1]-a[1])[0];
+    const topCategoryShare = top ? top[1] / Math.max(1, totalExpense) : 0;
+    return { totalExpense, totalIncome, avgDailySpend, burnRate, topCategory: top?.[0] || "-", topCategoryShare, daysInMonth, dayOfMonth, targetBudget };
+  }, [txs, monthISO, forecast.recommendedBudget, monthBudget]);
+
+  const spendVolatility = useMemo(() => {
+    // Coefficient of variation of daily expenses in last 30 days
+    const byDay = new Map<string, number>();
+    const now = new Date();
+    for (const t of txs) {
+      if (t.type !== "expense") continue;
+      const d = new Date(t.date || t.createdAt);
+      if ((now.getTime() - d.getTime()) / (24*3600*1000) > 30) continue;
+      const key = (t.date || t.createdAt).slice(0,10);
+      byDay.set(key, (byDay.get(key) || 0) + t.amount);
+    }
+    if (byDay.size === 0) return 0;
+    const values = [...byDay.values()];
+    const mean = values.reduce((s,v)=>s+v,0) / values.length;
+    const variance = values.reduce((s,v)=> s + Math.pow(v - mean, 2), 0) / values.length;
+    const std = Math.sqrt(variance);
+    const cv = std / Math.max(1e-6, mean);
+    return cv; // lower is more stable
+  }, [txs]);
+
+  const incomeStability = useMemo(() => {
+    // Stability of monthly income totals over last 6 months: 1 - CV
+    const buckets = new Map<string, number>();
+    for (const t of txs) {
+      if (t.type !== "income") continue;
+      const key = (t.date || t.createdAt).slice(0,7);
+      buckets.set(key, (buckets.get(key) || 0) + t.amount);
+    }
+    const months = [...buckets.entries()].sort(([a],[b])=> a < b ? -1 : 1).slice(-6).map(([,v])=>v);
+    if (months.length === 0) return 0;
+    const mean = months.reduce((s,v)=>s+v,0) / months.length;
+    const variance = months.reduce((s,v)=> s + Math.pow(v - mean, 2), 0) / months.length;
+    const std = Math.sqrt(variance);
+    const cv = std / Math.max(1, mean);
+    const stability = Math.max(0, Math.min(1, 1 - cv));
+    return stability; // 0..1 (higher is more stable)
+  }, [txs]);
+
+  const weeklyIncomeExpense = useMemo(() => {
+    // map ISO week to { income, expense }
+    const map = new Map<string, { income: number; expense: number }>();
+    for (const t of txs) {
+      const d = new Date(t.date || t.createdAt);
+      const tmp = new Date(d.getTime());
+      const dayNum = (d.getUTCDay() + 6) % 7; // Monday=0
+      tmp.setUTCDate(d.getUTCDate() - dayNum + 3);
+      const firstThursday = tmp.getTime();
+      const jan4 = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 4));
+      const week = 1 + Math.round((firstThursday - Date.UTC(jan4.getUTCFullYear(), 0, 4)) / (7 * 24 * 3600 * 1000));
+      const key = `${tmp.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
+      const curr = map.get(key) || { income: 0, expense: 0 };
+      curr[t.type] += t.amount as number;
+      map.set(key, curr);
+    }
+    return [...map.entries()].sort(([a],[b])=> a < b ? -1 : 1).slice(-8).map(([name, v])=> ({ name, income: v.income, expense: v.expense }));
+  }, [txs]);
+
+  const netWorth = useMemo(() => {
+    const assets = accounts
+      .filter((a) => a.type !== "credit")
+      .reduce((s, a) => s + Number(a.balance || 0), 0);
+    const credit = accounts
+      .filter((a) => a.type === "credit")
+      .reduce((s, a) => s + Number(a.balance || 0), 0);
+    return assets - Math.abs(credit);
+  }, [accounts]);
+
   return (
     <PullToRefresh onRefresh={fetchAll}>
     <div className="space-y-4">
+      {showOnboarding && (
+        <div className="rounded-md border card p-3">
+          <div className="text-sm font-medium">Welcome! Let’s set things up</div>
+          <div className="text-xs text-[var(--muted)]">Finish the steps below to get the best experience.</div>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <Button variant={accounts.length>0?"secondary":"primary"} onClick={()=> { window.location.href = "/accounts"; trackEvent("onboarding_add_account"); }}>Add an account</Button>
+            <Button variant={monthBudget!==null?"secondary":"primary"} onClick={()=> { setBudgetOpen(true); trackEvent("onboarding_set_budget"); }}>Set monthly budget</Button>
+            <Button variant={goals.length>0?"secondary":"primary"} onClick={()=> { setSavingsOpen(true); trackEvent("onboarding_set_goal"); }}>Create a goal</Button>
+            <Button variant="secondary" onClick={async()=> { await fetch("/api/onboarding", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ completed: true }) }); setShowOnboarding(false); trackEvent("onboarding_complete"); }}>Mark as done</Button>
+          </div>
+        </div>
+      )}
       <div className="grid grid-cols-3 gap-2">
         <KpiCard label="Income" value={`₱${analytics.totalIncome.toLocaleString()}`} tone="pos" />
         <KpiCard label="Expense" value={`₱${analytics.totalExpense.toLocaleString()}`} tone="neg" />
-        <KpiCard label="Balance" value={`₱${analytics.balance.toLocaleString()}`} tone={analytics.balance >= 0 ? "pos" : "neg"} />
+        <KpiCard label="Net Worth" value={`₱${netWorth.toLocaleString()}`} tone={netWorth >= 0 ? "pos" : "neg"} />
       </div>
 
       <div className="rounded-md border card p-3">
@@ -452,10 +489,6 @@ export function EnhancedDashboard() {
           </Section>
         </div>
       )}
-
-      
-
-      
 
       <Modal open={budgetOpen} onClose={()=> setBudgetOpen(false)} title="Adjust Monthly Budget">
         <form onSubmit={async (e)=>{ e.preventDefault(); const amt = Number(budget||0); await fetch("/api/budget", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ month: monthISO, amount: amt }), credentials: "include" }); setMonthBudget(amt); setBudgetOpen(false); }} className="grid grid-cols-2 gap-2">
