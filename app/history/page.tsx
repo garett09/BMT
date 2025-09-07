@@ -69,6 +69,17 @@ export default function HistoryPage() {
 
   const visibleList = useMemo(() => filtered.slice(0, visible), [filtered, visible]);
 
+  const grouped = useMemo(() => {
+    const map = new Map<string, TransactionRecord[]>();
+    for (const t of visibleList) {
+      const key = (t.date || t.createdAt).slice(0,7);
+      const arr = map.get(key) || [];
+      arr.push(t);
+      map.set(key, arr);
+    }
+    return [...map.entries()].sort(([a],[b])=> a < b ? 1 : -1); // newest month first
+  }, [visibleList]);
+
   return (
     <PullToRefresh onRefresh={load}>
     <div className="min-h-dvh flex flex-col">
@@ -90,14 +101,19 @@ export default function HistoryPage() {
           ) : filtered.length === 0 ? (
             <div className="rounded-md border card p-4 text-center text-sm text-[var(--muted)]">No transactions yet.</div>
           ) : (
-            visibleList.map((t) => (
-              <ListCard
-                key={t.id}
-                className={t.type === "income" ? "border-l-4 border-l-[var(--positive)]" : "border-l-4 border-l-[var(--negative)]"}
-                left={<div className="flex items-center gap-2"><Chip tone={t.type === "income" ? "pos" : "neg"}>{t.type}</Chip><span>{t.category}{t.subcategory ? ` • ${t.subcategory}` : ""}</span></div>}
-                sub={<div className="text-[10px] text-[var(--muted)]">{t.date}</div>}
-                right={<div className={t.type === "income" ? "text-[var(--positive)]" : "text-[var(--negative)]"}>₱{t.amount.toLocaleString()}</div>}
-              />
+            grouped.map(([m, list]) => (
+              <div key={m} className="space-y-2">
+                <div className="sticky top-[52px] z-10 bg-background/90 backdrop-blur border-b px-1 py-1 text-xs text-[var(--muted)]">{m}</div>
+                {list.map((t) => (
+                  <ListCard
+                    key={t.id}
+                    className={t.type === "income" ? "border-l-4 border-l-[var(--positive)]" : "border-l-4 border-l-[var(--negative)]"}
+                    left={<div className="flex items-center gap-2"><Chip tone={t.type === "income" ? "pos" : "neg"}>{t.type}</Chip><span>{t.category}{t.subcategory ? ` • ${t.subcategory}` : ""}</span></div>}
+                    sub={<div className="text-[10px] text-[var(--muted)]">{t.date}</div>}
+                    right={<div className={t.type === "income" ? "text-[var(--positive)]" : "text-[var(--negative)]"}>₱{t.amount.toLocaleString()}</div>}
+                  />
+                ))}
+              </div>
             ))
           )}
           <div ref={sentinelRef} />
