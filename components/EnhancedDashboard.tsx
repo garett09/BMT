@@ -88,12 +88,13 @@ export function EnhancedDashboard() {
       .sort(([a], [b]) => (a < b ? -1 : 1))
       .slice(-7)
       .map(([name, value]) => ({ name, value }));
-  }, [txs]);
+  }, [txs, selectedCategory]);
 
   // Weekly aggregation (last 8 weeks)
   const weeklyTrend = useMemo(() => {
     const map = new Map<string, number>();
     for (const t of txs) {
+      if (selectedCategory && t.category.toLowerCase() !== selectedCategory.toLowerCase()) continue;
       const d = new Date(t.date || t.createdAt);
       // ISO week key like 2025-W35
       const tmp = new Date(d.getTime());
@@ -126,7 +127,7 @@ export function EnhancedDashboard() {
       .map(([month, v]) => ({ month, income: v.income, expense: v.expense, balance: v.income - v.expense }));
     const last6 = rows.slice(-6);
     return last6;
-  }, [txs]);
+  }, [txs, selectedCategory]);
 
   const predictions = useMemo(() => {
     const rows = monthlySummary;
@@ -357,7 +358,7 @@ export function EnhancedDashboard() {
 
         <Section title="Top Spending Categories">
           <div className="grid grid-cols-2 gap-3">
-            <DonutChart data={chartData.map((d) => ({ name: d.name, value: d.expense }))} />
+            <DonutChart data={chartData.map((d) => ({ name: d.name, value: d.expense }))} onSelect={(name)=> { setSelectedCategory(name); trackEvent("donut_select", { name }); }} />
             <div className="text-xs text-[var(--muted)] space-y-1">
               {chartData.map((d) => (
                 <div key={d.name} className="flex items-center justify-between border-b border-[var(--border)]/50 pb-1">
@@ -365,6 +366,13 @@ export function EnhancedDashboard() {
                   <span className="text-white">₱{d.expense.toLocaleString()} ({Math.round((d.expense/Math.max(1, analytics.totalExpense))*100)}%)</span>
                 </div>
               ))}
+              {selectedCategory && (
+                <div className="pt-2 flex items-center gap-2">
+                  <span>Filter:</span>
+                  <span className="px-2 py-0.5 rounded-full bg-[var(--card)] border text-xs">{selectedCategory}</span>
+                  <button className="text-xs underline" onClick={()=> { setSelectedCategory(null); trackEvent("donut_clear"); }}>Clear</button>
+                </div>
+              )}
             </div>
           </div>
         </Section>
